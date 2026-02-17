@@ -13,13 +13,10 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
-    /* Глобальные стили для сброса и предотвращения скролла */
     body, html { 
-      margin: 0; 
-      padding: 0; 
+      margin: 0; padding: 0; 
       background-color: #07090A; 
-      height: 100%; 
-      overflow: hidden; 
+      height: 100%; overflow: hidden; 
       overscroll-behavior: none;
     }
   </style>
@@ -29,21 +26,15 @@
 <div id="root"></div>
 
 <script type="text/babel">
-  // Получаем хуки из глобального объекта React
   const { useState, useEffect, useCallback, useRef } = React;
-
   const PTS = ["0", "15", "30", "40"];
 
   /* ─── Вспомогательные функции ─── */
+  
+  // ЗВУК ОТКЛЮЧЕН ПО ПРОСЬБЕ
   function speak(text) {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    // Пытаемся говорить на английском, так как термины теннисные (можно поменять на ru-RU)
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "en-US"; 
-    u.rate = 0.9;
-    u.volume = 1;
-    window.speechSynthesis.speak(u);
+    // Оставляем функцию пустой, чтобы не ломать логику вызовов, но звук не идет
+    // console.log("Silent announcement:", text);
   }
 
   function vibrate(pattern = 25) {
@@ -58,15 +49,16 @@
   /* ─── Логика Тенниса ─── */
   function freshMatch(server) {
     return {
-      p1: 0, p2: 0,        // Очки внутри гейма (0, 1, 2, 3...)
+      p1: 0, p2: 0,        // Очки текущего гейма
       g1: 0, g2: 0,        // Геймы
       s1: 0, s2: 0,        // Сеты
-      sets: [],            // История сетов
-      tb: false, tb1: 0, tb2: 0, // Тайбрейк
+      sets: [],            // История сетов: [{a: 6, b: 4}, ...]
+      total1: 0, total2: 0, // ОБЩЕЕ КОЛИЧЕСТВО ОЧКОВ
+      tb: false, tb1: 0, tb2: 0,
       deuce: false, adv: false, advP: null,
       over: false, winner: null,
-      server,              // Кто подает (1 или 2)
-      pointNum: 0,         // Общее кол-во розыгрышей
+      server,
+      pointNum: 0,
     };
   }
 
@@ -77,13 +69,10 @@
     s.p1 = 0; s.p2 = 0;
     s.deuce = false; s.adv = false; s.advP = null;
     s.tb1 = 0; s.tb2 = 0; s.tb = false;
-    // Смена подачи после гейма
     s.server = s.server === 1 ? 2 : 1;
     
-    // Проверка победы в сете
     if (s.g1 >= 6 && s.g1 - s.g2 >= 2) return winSet(s, 1);
     if (s.g2 >= 6 && s.g2 - s.g1 >= 2) return winSet(s, 2);
-    // Тайбрейк при 6-6
     if (s.g1 === 6 && s.g2 === 6) s.tb = true;
     return s;
   }
@@ -92,7 +81,6 @@
     s.sets.push({ a: s.g1, b: s.g2 });
     if (p === 1) s.s1++; else s.s2++;
     s.g1 = 0; s.g2 = 0;
-    // Победа в матче (Best of 3)
     if (s.s1 >= 2) { s.over = true; s.winner = 1; }
     if (s.s2 >= 2) { s.over = true; s.winner = 2; }
     return s;
@@ -102,12 +90,15 @@
     const s = clone(prev);
     if (s.over) return s;
     s.pointNum++;
+    
+    // Считаем общее количество очков (Total Points)
+    if (p === 1) s.total1++; else s.total2++;
 
-    // Логика Тайбрейка
+    // Тайбрейк
     if (s.tb) {
       if (p === 1) s.tb1++; else s.tb2++;
       s.p1 = s.tb1; s.p2 = s.tb2;
-      // Смена подачи каждые 2 очка (после первого - смена, потом каждые 2)
+      // Смена подачи на тайбрейке (после 1 очка, потом каждые 2)
       if ((s.tb1 + s.tb2) % 2 === 1) s.server = s.server === 1 ? 2 : 1;
       
       if (s.tb1 >= 7 && s.tb1 - s.tb2 >= 2) return winGame(s, 1);
@@ -115,24 +106,24 @@
       return s;
     }
 
-    // Логика Deuce / Advantage
+    // Deuce / Adv
     if (s.p1 >= 3 && s.p2 >= 3) {
       if (s.adv) {
-        if (s.advP === p) return winGame(s, p); // Выиграл гейм из AD
-        s.adv = false; s.advP = null; s.deuce = true; // Вернулись в ровно
+        if (s.advP === p) return winGame(s, p);
+        s.adv = false; s.advP = null; s.deuce = true;
         return s;
       }
       if (s.deuce || (s.p1 === 3 && s.p2 === 3)) {
-        s.deuce = false; s.adv = true; s.advP = p; // Получил AD
+        s.deuce = false; s.adv = true; s.advP = p;
         return s;
       }
     }
 
-    // Обычные очки
+    // Обычный счет
     if (p === 1) s.p1++; else s.p2++;
-    if (s.p1 >= 4 && s.p1 - s.p2 >= 2) return winGame(s, 1); // 40 -> Game (если нет ровно)
+    if (s.p1 >= 4 && s.p1 - s.p2 >= 2) return winGame(s, 1);
     if (s.p2 >= 4 && s.p2 - s.p1 >= 2) return winGame(s, 2);
-    if (s.p1 >= 4) return winGame(s, 1); // Заглушка для простых геймов
+    if (s.p1 >= 4) return winGame(s, 1);
     if (s.p2 >= 4) return winGame(s, 2);
     
     if (s.p1 === 3 && s.p2 === 3) s.deuce = true;
@@ -147,19 +138,22 @@
     return PTS[v] || String(v);
   }
 
-  function announce(m, n1, n2) {
-    if (m.over) return `Game set and match, ${m.winner === 1 ? n1 : n2}`;
-    if (m.tb) return `Tiebreak: ${m.tb1}, ${m.tb2}`;
-    if (m.deuce) return "Deuce";
-    if (m.adv) return `Advantage ${m.advP === 1 ? n1 : n2}`;
-    const a = PTS[m.p1], b = PTS[m.p2];
-    if (a === b && a !== "0") return `${a} all`;
-    return `${a}, ${b}`;
+  // Проверка смены сторон
+  function checkSwitchSides(m) {
+    if (m.over) return false;
+    // На тайбрейке меняемся каждые 6 очков
+    if (m.tb) {
+      const sum = m.tb1 + m.tb2;
+      return sum > 0 && sum % 6 === 0;
+    }
+    // В обычном режиме меняемся, если сумма геймов нечетная (1, 3, 5...)
+    // И только когда идет пауза между геймами (очки 0-0)
+    const gamesSum = m.g1 + m.g2;
+    return gamesSum > 0 && gamesSum % 2 !== 0 && m.p1 === 0 && m.p2 === 0;
   }
 
-  /* ─── Компоненты ─── */
+  /* ─── Components ─── */
 
-  // Компонент подбрасывания монетки
   function CoinToss({ p1, p2, onResult }) {
     const [phase, setPhase] = useState("idle");
     const [result, setResult] = useState(null);
@@ -175,68 +169,37 @@
       }, 1500);
     };
 
-    const choose = (server) => {
-      vibrate(30);
-      speak(`${server === 1 ? p1 : p2} serves first`);
-      onResult(server);
-    };
-
     return (
       <div style={{
         display: "flex", flexDirection: "column", alignItems: "center",
         justifyContent: "center", gap: 24, animation: "fadeUp 0.4s ease",
-        padding: "0 20px", width: "100%"
+        padding: "0 20px", width: "100%", height: "100%"
       }}>
-        <p style={{ fontSize: 11, color: "#666", fontFamily: "var(--mono)", letterSpacing: 3, textTransform: "uppercase" }}>
-          Who serves first?
-        </p>
-
         <div style={{
           width: 120, height: 120, borderRadius: "50%",
           background: phase === "spinning"
             ? "conic-gradient(#C8FF00, #0a0f0a, #C8FF00, #0a0f0a, #C8FF00)"
-            : result
-            ? "linear-gradient(135deg, #C8FF00, #8BA600)"
-            : "linear-gradient(135deg, #1a1f1a, #252a25)",
+            : result ? "linear-gradient(135deg, #C8FF00, #8BA600)" : "#1a1f1a",
           border: `3px solid ${result ? "#C8FF00" : "#333"}`,
           display: "flex", alignItems: "center", justifyContent: "center",
           animation: phase === "spinning" ? `spin 0.3s linear infinite` : "none",
-          boxShadow: result ? "0 0 40px rgba(200,255,0,0.3)" : "0 4px 20px rgba(0,0,0,0.5)",
-          cursor: phase === "idle" ? "pointer" : "default",
-        }}
-        onClick={phase === "idle" ? toss : undefined}
-        >
-          {phase === "idle" && <span style={{ fontSize: 36 }}>🎾</span>}
-          {phase === "spinning" && <span style={{ fontSize: 28, filter: "blur(2px)" }}>🎾</span>}
-          {phase === "done" && (
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: "#0a0f0a", fontFamily: "var(--mono)" }}>WON</div>
-              <div style={{ fontSize: 16, fontWeight: 900, color: "#0a0f0a" }}>{result === 1 ? p1 : p2}</div>
-            </div>
-          )}
+        }} onClick={phase === "idle" ? toss : undefined}>
+          <span style={{ fontSize: 36 }}>🎾</span>
         </div>
-
-        {(phase === "idle" || phase === "done") && (
-          <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 300 }}>
-            <button onClick={() => choose(1)} style={{
-              flex: 1, padding: "14px 0",
-              background: phase === "done" && result === 1 ? "rgba(200,255,0,0.12)" : "rgba(255,255,255,0.04)",
-              border: `1px solid ${phase === "done" && result === 1 ? "rgba(200,255,0,0.3)" : "rgba(255,255,255,0.08)"}`,
-              borderRadius: 12, color: "#ccc", fontSize: 13, fontWeight: 700, fontFamily: "var(--font)",
-            }}>🎾 {p1}</button>
-            <button onClick={() => choose(2)} style={{
-              flex: 1, padding: "14px 0",
-              background: phase === "done" && result === 2 ? "rgba(200,255,0,0.12)" : "rgba(255,255,255,0.04)",
-              border: `1px solid ${phase === "done" && result === 2 ? "rgba(200,255,0,0.3)" : "rgba(255,255,255,0.08)"}`,
-              borderRadius: 12, color: "#ccc", fontSize: 13, fontWeight: 700, fontFamily: "var(--font)",
-            }}>🎾 {p2}</button>
+        
+        {phase === "done" && (
+          <div style={{ textAlign: "center", marginTop: -10 }}>
+            <p style={{color: "#C8FF00", fontWeight: "bold"}}>{result === 1 ? p1 : p2} serves!</p>
+            <button onClick={() => onResult(result)} style={{
+               marginTop: 20, padding: "12px 30px", background: "#333", 
+               color: "#fff", borderRadius: 8, fontWeight: "bold"
+            }}>Start Match</button>
           </div>
         )}
       </div>
     );
   }
 
-  // Основное приложение
   function TennisScoreboard() {
     const [screen, setScreen] = useState("setup");
     const [p1, setP1] = useState("Player 1");
@@ -245,21 +208,8 @@
     const [hist, setHist] = useState([]);
     const [elapsed, setElapsed] = useState(0);
     const [flash, setFlash] = useState(null);
-    const [lastMsg, setLastMsg] = useState(null);
     const timerRef = useRef(null);
     const startRef = useRef(null);
-    const wakeLockRef = useRef(null);
-
-    // Блокировка угасания экрана
-    const lockScreen = async () => {
-      try { if ("wakeLock" in navigator) wakeLockRef.current = await navigator.wakeLock.request("screen"); } catch(e) { console.log("WakeLock error", e); }
-    };
-    const unlockScreen = () => {
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release().catch(() => {});
-        wakeLockRef.current = null;
-      }
-    };
 
     const startTimer = () => {
       startRef.current = Date.now();
@@ -267,19 +217,12 @@
     };
     const stopTimer = () => clearInterval(timerRef.current);
 
-    const goToToss = () => {
-      if (!p1.trim()) setP1("Player 1");
-      if (!p2.trim()) setP2("Player 2");
-      setScreen("toss");
-    };
-
     const startMatch = (server) => {
       setMatch(freshMatch(server));
       setHist([]);
       setElapsed(0);
       setScreen("match");
       startTimer();
-      lockScreen();
     };
 
     const doScore = useCallback((p) => {
@@ -288,275 +231,203 @@
       setHist(h => [...h, clone(match)]);
       const next = point(match, p);
       setMatch(next);
-      
-      const msg = announce(next, p1, p2);
-      speak(msg);
-      setLastMsg(msg);
       setFlash(p);
-      setTimeout(() => { setFlash(null); setLastMsg(null); }, 1800);
+      setTimeout(() => setFlash(null), 300);
 
       if (next.over) {
-        setTimeout(() => { stopTimer(); setScreen("final"); }, 2500);
+        setTimeout(() => { stopTimer(); setScreen("final"); }, 1500);
       }
-    }, [match, p1, p2]);
+    }, [match]);
 
     const doUndo = useCallback(() => {
       if (hist.length === 0) return;
       vibrate(20);
       setMatch(hist[hist.length - 1]);
       setHist(h => h.slice(0, -1));
-      speak("Undo");
-      setLastMsg("↩ Undo");
-      setTimeout(() => setLastMsg(null), 1200);
     }, [hist]);
 
-    const reset = () => { stopTimer(); unlockScreen(); setScreen("setup"); };
-
-    // Управление с клавиатуры (для тестов на ПК)
-    useEffect(() => {
-      if (screen !== "match") return;
-      const h = (e) => {
-        if (e.key === "ArrowLeft" || e.key === "1") doScore(1);
-        else if (e.key === "ArrowRight" || e.key === "2") doScore(2);
-        else if (e.key === "z" || e.key === "Z") doUndo();
-      };
-      window.addEventListener("keydown", h);
-      return () => window.removeEventListener("keydown", h);
-    }, [screen, doScore, doUndo]);
-
-    useEffect(() => () => { stopTimer(); unlockScreen(); }, []);
+    const reset = () => { stopTimer(); setScreen("setup"); };
 
     const lime = "#C8FF00";
     const bg = "#07090A";
+    
+    // Определяем, нужно ли менять стороны
+    const showSwitch = match ? checkSwitchSides(match) : false;
 
     return (
       <div style={{
-        "--font": "'Outfit', sans-serif",
-        "--mono": "'DM Mono', monospace",
-        height: "100vh", height: "100dvh",
-        background: bg,
-        fontFamily: "var(--font)",
-        display: "flex", flexDirection: "column",
-        overflow: "hidden",
-        userSelect: "none",
-        WebkitUserSelect: "none",
+        fontFamily: "'Outfit', sans-serif",
+        height: "100vh", background: bg, color: "white",
+        display: "flex", flexDirection: "column", overflow: "hidden"
       }}>
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700;800;900&display=swap');
-          @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-          @keyframes pulseGlow { 0%,100% { box-shadow: 0 0 20px rgba(200,255,0,0.15); } 50% { box-shadow: 0 0 50px rgba(200,255,0,0.35); } }
+          @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
           @keyframes spin { to { transform: rotate(360deg); } }
-          @keyframes flashL { 0% { background: linear-gradient(90deg, rgba(200,255,0,0.12) 0%, transparent 50%); } 100% { background: transparent; } }
-          @keyframes flashR { 0% { background: linear-gradient(270deg, rgba(200,255,0,0.12) 0%, transparent 50%); } 100% { background: transparent; } }
-          @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-          @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-          * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-          button { font-family: var(--font); cursor: pointer; border: none; }
-          button:active { transform: scale(0.96); }
-          input:focus { outline: none; }
+          * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+          button { border: none; font-family: inherit; cursor: pointer; }
+          input:focus { outline: none; border-color: ${lime} !important; }
         `}</style>
 
-        {/* ═══════════ ЭКРАН 1: НАСТРОЙКА ═══════════ */}
+        {/* 1. SETUP SCREEN */}
         {screen === "setup" && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, animation: "fadeUp 0.5s ease" }}>
-            <div style={{ width: 64, height: 64, borderRadius: 18, background: `linear-gradient(135deg, ${lime}, #7CB800)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, marginBottom: 16 }}>🎾</div>
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: "#fff", letterSpacing: -0.5, marginBottom: 2 }}>Tennis Score</h1>
-            <p style={{ fontSize: 11, color: "#555", fontFamily: "var(--mono)", letterSpacing: 3, marginBottom: 36 }}>SMART SCOREBOARD</p>
-
-            <div style={{ width: "100%", maxWidth: 340 }}>
-              {[{ l: "PLAYER 1", v: p1, s: setP1 }, { l: "PLAYER 2", v: p2, s: setP2 }].map((f, i) => (
-                <div key={i} style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: 10, color: "#555", fontFamily: "var(--mono)", letterSpacing: 2, marginBottom: 5, display: "block" }}>{f.l}</label>
-                  <input value={f.v} onChange={e => f.s(e.target.value)}
-                    onFocus={e => e.target.style.borderColor = lime}
-                    onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.08)"}
-                    style={{ width: "100%", padding: "13px 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#fff", fontSize: 16, fontWeight: 600, fontFamily: "var(--font)" }}
-                  />
-                </div>
-              ))}
-
-              <button onClick={goToToss} style={{ width: "100%", marginTop: 10, padding: "16px 0", background: `linear-gradient(135deg, ${lime}, #9BCC00)`, borderRadius: 14, color: bg, fontSize: 16, fontWeight: 800, letterSpacing: 0.5, animation: "pulseGlow 2.5s infinite" }}>
-                Start Game →
-              </button>
-            </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 30 }}>
+            <div style={{ fontSize: 40, marginBottom: 20 }}>🎾</div>
+            <h1 style={{ marginBottom: 40 }}>Tennis Score</h1>
+            <input value={p1} onChange={e=>setP1(e.target.value)} placeholder="Player 1" style={{width: "100%", padding: 15, marginBottom: 15, borderRadius: 10, background: "#1a1a1a", border: "1px solid #333", color: "white"}} />
+            <input value={p2} onChange={e=>setP2(e.target.value)} placeholder="Player 2" style={{width: "100%", padding: 15, marginBottom: 30, borderRadius: 10, background: "#1a1a1a", border: "1px solid #333", color: "white"}} />
+            <button onClick={() => setScreen("toss")} style={{width: "100%", padding: 18, borderRadius: 12, background: lime, color: "black", fontWeight: 800, fontSize: 16}}>CONTINUE</button>
           </div>
         )}
 
-        {/* ═══════════ ЭКРАН 2: ЖРЕБИЙ ═══════════ */}
-        {screen === "toss" && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-            <CoinToss p1={p1} p2={p2} onResult={startMatch} />
-          </div>
-        )}
+        {/* 2. TOSS SCREEN */}
+        {screen === "toss" && <CoinToss p1={p1} p2={p2} onResult={startMatch} />}
 
-        {/* ═══════════ ЭКРАН 3: МАТЧ ═══════════ */}
+        {/* 3. MATCH SCREEN */}
         {screen === "match" && match && (
-          <div style={{
-            flex: 1, display: "flex", flexDirection: "column",
-            animation: flash === 1 ? "flashL 0.6s ease" : flash === 2 ? "flashR 0.6s ease" : "none",
-          }}>
-            {/* Верхний бар */}
-            <div style={{ padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 12, color: "#555", fontFamily: "var(--mono)" }}>{fmtTime(elapsed)}</span>
-              <span style={{ fontSize: 10, color: "#444", fontFamily: "var(--mono)", letterSpacing: 2 }}>
-                {match.tb ? "TIEBREAK" : match.deuce ? "DEUCE" : match.adv ? "ADV" : `SET ${match.sets.length + 1}`}
-              </span>
-              <span style={{ fontSize: 12, color: "#555", fontFamily: "var(--mono)" }}>PT {match.pointNum}</span>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            {/* Top Bar */}
+            <div style={{ padding: "15px", display: "flex", justifyContent: "space-between", color: "#666", fontSize: 13, fontFamily: "'DM Mono', monospace" }}>
+              <span>{fmtTime(elapsed)}</span>
+              <span>{match.tb ? "TIEBREAK" : `SET ${match.sets.length + 1}`}</span>
+              <span>PTS: {match.pointNum}</span>
             </div>
 
-            {/* Счет по сетам (история) */}
-            {match.sets.length > 0 && (
-              <div style={{ display: "flex", justifyContent: "center", gap: 12, padding: "0 16px 8px" }}>
-                {match.sets.map((s, i) => (
-                  <div key={i} style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                    <span style={{ fontSize: 12, color: s.a > s.b ? lime : "#555", fontWeight: 700, fontFamily: "var(--mono)" }}>{s.a}</span>
-                    <span style={{ fontSize: 10, color: "#333" }}>–</span>
-                    <span style={{ fontSize: 12, color: s.b > s.a ? lime : "#555", fontWeight: 700, fontFamily: "var(--mono)" }}>{s.b}</span>
-                  </div>
-                ))}
+            {/* SWITCH SIDES ALERT */}
+            {showSwitch && (
+              <div style={{
+                background: lime, color: "black", textAlign: "center",
+                padding: "8px", fontWeight: "900", letterSpacing: 1,
+                animation: "blink 1s infinite", fontSize: 14
+              }}>
+                🔁 CHANGE ENDS
               </div>
             )}
 
-            {/* Основное Табло */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "0 16px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-                {[1, 2].map(pl => {
-                  const name = pl === 1 ? p1 : p2;
-                  const sets = pl === 1 ? match.s1 : match.s2;
-                  const games = pl === 1 ? match.g1 : match.g2;
-                  const pts = getPts(match, pl);
-                  const isServing = match.server === pl;
-                  const isAdv = match.adv && match.advP === pl;
-
-                  return (
-                    <div key={pl} style={{
-                      background: "rgba(255,255,255,0.03)",
-                      border: `1px solid ${isAdv ? "rgba(200,255,0,0.2)" : "rgba(255,255,255,0.05)"}`,
-                      borderRadius: 20, padding: "20px 16px 18px",
-                      textAlign: "center", position: "relative",
-                      transition: "border-color 0.3s",
-                    }}>
-                      {/* Индикатор подачи */}
-                      {isServing && (
-                        <div style={{
-                          position: "absolute", top: 12, right: 14,
-                          width: 8, height: 8, borderRadius: "50%",
-                          background: lime, boxShadow: `0 0 8px ${lime}`,
-                        }} />
-                      )}
-
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#bbb", marginBottom: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</div>
-
-                      {/* Геймы и сеты */}
-                      <div style={{ display: "flex", justifyContent: "center", gap: 16, marginBottom: 12 }}>
-                        <div>
-                          <div style={{ fontSize: 9, color: "#444", fontFamily: "var(--mono)", letterSpacing: 2, marginBottom: 2 }}>SETS</div>
-                          <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>{sets}</div>
-                        </div>
-                        <div style={{ width: 1, background: "rgba(255,255,255,0.06)" }} />
-                        <div>
-                          <div style={{ fontSize: 9, color: "#444", fontFamily: "var(--mono)", letterSpacing: 2, marginBottom: 2 }}>GAMES</div>
-                          <div style={{ fontSize: 22, fontWeight: 800, color: "#fff" }}>{games}</div>
-                        </div>
-                      </div>
-
-                      {/* Очки (Большие цифры) */}
-                      <div style={{
-                        fontSize: 72, fontWeight: 900, lineHeight: 1,
-                        color: pts === "AD" ? lime : "#fff",
-                        transition: "color 0.3s",
-                      }}>{pts}</div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Сообщения (анонс) */}
-              <div style={{ minHeight: 28, textAlign: "center", marginBottom: 8 }}>
-                {lastMsg && (
-                  <div style={{
-                    display: "inline-block", background: "rgba(200,255,0,0.08)",
-                    border: "1px solid rgba(200,255,0,0.15)", borderRadius: 8,
-                    padding: "5px 16px", fontSize: 14, fontWeight: 700, color: lime,
-                    animation: "popIn 0.25s ease",
-                  }}>🔊 {lastMsg}</div>
-                )}
-              </div>
-            </div>
-
-            {/* Кнопки управления */}
-            <div style={{ padding: "0 16px 20px", flexShrink: 0 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-                {[1, 2].map(pl => (
-                  <button key={pl} onClick={() => doScore(pl)} style={{
-                    padding: "20px 0",
-                    background: `linear-gradient(135deg, ${lime}, #9BCC00)`,
-                    borderRadius: 14, color: bg,
-                    fontSize: 15, fontWeight: 800,
-                  }}>
-                    {pl === 1 ? "◀ " : ""}{pl === 1 ? p1 : p2}{pl === 2 ? " ▶" : ""}
-                  </button>
-                ))}
-              </div>
+            {/* Scoreboard Area */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: 10 }}>
+              
+              {/* Sets History (Small) */}
+              {match.sets.length > 0 && (
+                 <div style={{display: "flex", justifyContent: "center", gap: 15, marginBottom: 10, fontSize: 14, fontFamily: "'DM Mono', monospace"}}>
+                    {match.sets.map((s, i) => (
+                      <span key={i} style={{color: "#888"}}>
+                        <span style={{color: s.a > s.b ? lime : "#888"}}>{s.a}</span>-<span style={{color: s.b > s.a ? lime : "#888"}}>{s.b}</span>
+                      </span>
+                    ))}
+                 </div>
+              )}
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <button onClick={doUndo} disabled={hist.length === 0} style={{
-                  padding: "13px 0", background: "transparent",
-                  border: `1px solid ${hist.length > 0 ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.03)"}`,
-                  borderRadius: 12, color: hist.length > 0 ? "#777" : "#2a2a2a",
-                  fontSize: 13, fontWeight: 600,
-                }}>↩ Undo</button>
-                <button onClick={() => { stopTimer(); unlockScreen(); setScreen("final"); }} style={{
-                  padding: "13px 0", background: "transparent",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 12, color: "#444", fontSize: 13, fontWeight: 600,
-                }}>✕ End Match</button>
+                {[1, 2].map(pl => {
+                   const isSrv = match.server === pl;
+                   const pts = getPts(match, pl);
+                   return (
+                     <div key={pl} style={{
+                       background: "#121415", borderRadius: 20, padding: 20,
+                       textAlign: "center", position: "relative",
+                       border: isSrv ? `1px solid ${lime}` : "1px solid #222"
+                     }}>
+                        {isSrv && <div style={{position:"absolute", top:10, right:10, width:8, height:8, background:lime, borderRadius:"50%"}} />}
+                        <div style={{color: "#aaa", fontWeight: 700, fontSize: 14, marginBottom: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>
+                          {pl === 1 ? p1 : p2}
+                        </div>
+                        <div style={{fontSize: 24, fontWeight: 800, marginBottom: 10}}>
+                          {pl === 1 ? match.g1 : match.g2} <span style={{fontSize: 10, color: "#444", fontWeight: 400}}>GAMES</span>
+                        </div>
+                        <div style={{fontSize: 70, fontWeight: 900, color: pts === "AD" ? lime : "white", lineHeight: 1}}>
+                          {pts}
+                        </div>
+                     </div>
+                   )
+                })}
               </div>
+            </div>
+
+            {/* Controls */}
+            <div style={{ padding: 20 }}>
+               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 15 }}>
+                  <button onClick={() => doScore(1)} style={{padding: 30, borderRadius: 16, background: "#1f2223", color: lime, fontSize: 18, fontWeight: 800, border: `1px solid ${lime}`}}>{p1}</button>
+                  <button onClick={() => doScore(2)} style={{padding: 30, borderRadius: 16, background: "#1f2223", color: lime, fontSize: 18, fontWeight: 800, border: `1px solid ${lime}`}}>{p2}</button>
+               </div>
+               <div style={{display: "flex", gap: 10}}>
+                 <button onClick={doUndo} disabled={hist.length===0} style={{flex: 1, padding: 15, borderRadius: 12, background: "#111", color: "#666", border: "1px solid #333"}}>Undo</button>
+                 <button onClick={() => {stopTimer(); setScreen("final")}} style={{flex: 1, padding: 15, borderRadius: 12, background: "#111", color: "#666", border: "1px solid #333"}}>End</button>
+               </div>
             </div>
           </div>
         )}
 
-        {/* ═══════════ ЭКРАН 4: ФИНАЛ ═══════════ */}
+        {/* 4. FINAL RESULT SCREEN (FIXED) */}
         {screen === "final" && match && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, animation: "fadeUp 0.5s ease" }}>
-            <div style={{ fontSize: 52, marginBottom: 12, animation: "bounce 1s ease 0.3s" }}>🏆</div>
-            {match.winner ? (
-              <h2 style={{ fontSize: 24, fontWeight: 900, color: lime, marginBottom: 4 }}>{match.winner === 1 ? p1 : p2} Wins!</h2>
-            ) : (
-              <h2 style={{ fontSize: 24, fontWeight: 900, color: "#888", marginBottom: 4 }}>Match Ended</h2>
-            )}
-            <p style={{ fontSize: 14, color: "#888", marginBottom: 6 }}>{p1} vs {p2}</p>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
+             <div style={{fontSize: 60, marginBottom: 10}}>🏆</div>
+             <h2 style={{color: lime, fontSize: 28, textTransform: "uppercase", marginBottom: 5}}>
+               {match.winner ? (match.winner === 1 ? p1 : p2) + " Wins!" : "Finished"}
+             </h2>
+             <p style={{color: "#555", marginBottom: 30}}>{fmtTime(elapsed)} match duration</p>
 
-            <div style={{
-              background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: 18,
-              marginBottom: 8, minWidth: 200,
-            }}>
-              <div style={{ display: "grid", gridTemplateColumns: `auto ${match.sets.map(() => "40px").join(" ")} 40px`, gap: 4, alignItems: "center", fontSize: 13, fontFamily: "var(--mono)" }}>
-                <span style={{ color: "#888", fontWeight: 700 }}>{p1}</span>
-                {match.sets.map((s, i) => <span key={i} style={{ textAlign: "center", color: s.a > s.b ? lime : "#555", fontWeight: 700 }}>{s.a}</span>)}
-                {!match.over && <span style={{ textAlign: "center", color: "#555" }}>{match.g1}</span>}
-                
-                <span style={{ color: "#888", fontWeight: 700 }}>{p2}</span>
-                {match.sets.map((s, i) => <span key={i} style={{ textAlign: "center", color: s.b > s.a ? lime : "#555", fontWeight: 700 }}>{s.b}</span>)}
-                {!match.over && <span style={{ textAlign: "center", color: "#555" }}>{match.g2}</span>}
-              </div>
-            </div>
+             {/* Исправленная таблица счета */}
+             <div style={{ width: "100%", maxWidth: 350, background: "#121415", borderRadius: 16, padding: 20, marginBottom: 20 }}>
+                {/* Заголовки */}
+                <div style={{ display: "grid", gridTemplateColumns: "1.5fr repeat(3, 1fr)", marginBottom: 15, borderBottom: "1px solid #222", paddingBottom: 10, fontSize: 12, color: "#555", fontFamily: "'DM Mono', monospace" }}>
+                   <div style={{textAlign: "left"}}>PLAYER</div>
+                   <div style={{textAlign: "center"}}>SET 1</div>
+                   <div style={{textAlign: "center"}}>SET 2</div>
+                   <div style={{textAlign: "center"}}>SET 3</div>
+                </div>
 
-            <p style={{ fontSize: 12, color: "#444", fontFamily: "var(--mono)", marginBottom: 28 }}>
-              {fmtTime(elapsed)} · {match.pointNum} points
-            </p>
+                {/* Игрок 1 */}
+                <div style={{ display: "grid", gridTemplateColumns: "1.5fr repeat(3, 1fr)", marginBottom: 15, alignItems: "center" }}>
+                   <div style={{fontWeight: 700, color: match.winner === 1 ? lime : "white", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{p1}</div>
+                   {/* Логика отображения сетов + текущего гейма если матч не окончен */}
+                   {[0, 1, 2].map(i => {
+                      const set = match.sets[i];
+                      // Если сет был сыгран, показываем счет. Если нет, но это текущий сет - показываем геймы. Иначе прочерк.
+                      let val = "-";
+                      let color = "#333";
+                      if (set) { val = set.a; color = set.a > set.b ? "white" : "#666"; }
+                      else if (!match.over && match.sets.length === i) { val = match.g1; color = "#888"; }
+                      return <div key={i} style={{textAlign: "center", fontWeight: 700, fontSize: 18, color: color}}>{val}</div>
+                   })}
+                </div>
 
-            <button onClick={reset} style={{
-              padding: "14px 40px", background: `linear-gradient(135deg, ${lime}, #9BCC00)`,
-              borderRadius: 14, color: bg, fontSize: 15, fontWeight: 800,
-            }}>New Match</button>
+                {/* Игрок 2 */}
+                <div style={{ display: "grid", gridTemplateColumns: "1.5fr repeat(3, 1fr)", alignItems: "center" }}>
+                   <div style={{fontWeight: 700, color: match.winner === 2 ? lime : "white", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{p2}</div>
+                   {[0, 1, 2].map(i => {
+                      const set = match.sets[i];
+                      let val = "-";
+                      let color = "#333";
+                      if (set) { val = set.b; color = set.b > set.a ? "white" : "#666"; }
+                      else if (!match.over && match.sets.length === i) { val = match.g2; color = "#888"; }
+                      return <div key={i} style={{textAlign: "center", fontWeight: 700, fontSize: 18, color: color}}>{val}</div>
+                   })}
+                </div>
+             </div>
+
+             {/* Статистика Total Points */}
+             <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 350, marginBottom: 30 }}>
+                <div style={{flex: 1, background: "#1a1a1a", padding: 15, borderRadius: 12, textAlign: "center"}}>
+                   <div style={{fontSize: 10, color: "#555", marginBottom: 5}}>TOTAL POINTS</div>
+                   <div style={{fontSize: 20, fontWeight: 700, color: match.total1 > match.total2 ? "white" : "#666"}}>{match.total1}</div>
+                   <div style={{fontSize: 10, color: "#444", marginTop: 2}}>{p1}</div>
+                </div>
+                <div style={{flex: 1, background: "#1a1a1a", padding: 15, borderRadius: 12, textAlign: "center"}}>
+                   <div style={{fontSize: 10, color: "#555", marginBottom: 5}}>TOTAL POINTS</div>
+                   <div style={{fontSize: 20, fontWeight: 700, color: match.total2 > match.total1 ? "white" : "#666"}}>{match.total2}</div>
+                   <div style={{fontSize: 10, color: "#444", marginTop: 2}}>{p2}</div>
+                </div>
+             </div>
+
+             <button onClick={reset} style={{ width: "100%", maxWidth: 350, padding: 18, borderRadius: 12, background: lime, color: "black", fontWeight: 800, fontSize: 16 }}>NEW MATCH</button>
           </div>
         )}
+
       </div>
     );
   }
 
-  // Рендерим приложение в div#root
   const root = ReactDOM.createRoot(document.getElementById("root"));
   root.render(<TennisScoreboard />);
 </script>
