@@ -6,204 +6,206 @@
   <meta name="theme-color" content="#07090A">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Avride Tennis</title>
-  
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
   <style>
-    body, html { margin: 0; padding: 0; background-color: #07090A; height: 100%; overflow: hidden; overscroll-behavior: none; }
+    body,html{margin:0;padding:0;background:#07090A;height:100%;overflow:hidden;overscroll-behavior:none}
     @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700;800;900&display=swap');
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes popIn { 0% { transform: scale(0.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    button { border: none; font-family: inherit; cursor: pointer; }
-    input:focus { outline: none; border-color: #C8FF00 !important; }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    button{border:none;font-family:inherit;cursor:pointer}
+    input:focus{outline:none;border-color:#C8FF00!important}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes popIn{0%{transform:scale(.85);opacity:0}100%{transform:scale(1);opacity:1}}
+    @keyframes pulse{0%,100%{box-shadow:0 0 12px rgba(200,255,0,.2)}50%{box-shadow:0 0 30px rgba(200,255,0,.5)}}
   </style>
 </head>
 <body>
 <div id="root"></div>
-
 <script type="text/babel">
-const { useState, useEffect, useCallback, useRef } = React;
-const PTS = ["0", "15", "30", "40"];
-const lime = "#C8FF00";
-const bg = "#07090A";
+const {useState,useEffect,useCallback,useRef}=React;
+const PTS=["0","15","30","40"];
+const L="#C8FF00", BG="#07090A";
 
 /* ═══════════════════════════════════════════
-   MEDIA SESSION — Apple Watch "Now Playing"
+   MEDIA SESSION ENGINE — Apple Watch
    ═══════════════════════════════════════════
-   iPhone видит «аудио», Watch показывает пульт:
-   ⏮ = очко P1  |  ⏭ = очко P2  |  ⏸ = Undo
+   Создаёт настоящий аудиопоток, который iOS
+   распознаёт как воспроизведение. Watch видит
+   Now Playing и показывает кнопки управления.
+
+   ⏮ = очко Player 1
+   ⏭ = очко Player 2
+   ⏸ = Undo
 */
-class MediaRemote {
-  constructor() { this.audio=null; this.onPrev=null; this.onNext=null; this.onPause=null; this.active=false; }
+const WatchRemote = {
+  ctx: null,
+  audio: null,
+  active: false,
+  onPrev: null,
+  onNext: null,
+  onPause: null,
 
-  start(n1, n2) {
-    if (this.active) return;
-    // Silent audio — keeps media session alive
+  activate(n1, n2) {
+    if (this.active) return true;
     try {
-      this.audio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
-      this.audio.loop = true; this.audio.volume = 0.01;
-      this.audio.play().catch(()=>{});
-    } catch(e) {}
-    // Also oscillator for Safari
-    try {
-      this._ctx = new (window.AudioContext||window.webkitAudioContext)();
-      const o = this._ctx.createOscillator(); const g = this._ctx.createGain();
-      g.gain.value = 0.001; o.connect(g); g.connect(this._ctx.destination); o.start();
-      this._osc = o;
-    } catch(e) {}
+      // 1. Создаём AudioContext
+      const AC = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AC();
 
+      // 2. Генерируем настоящий (но неслышимый) аудиопоток
+      // Очень низкая частота 1Hz + минимальная громкость = тишина для уха, но поток для iOS
+      const osc = this.ctx.createOscillator();
+      osc.frequency.value = 1; // 1Hz — ниже порога слуха
+      const gain = this.ctx.createGain();
+      gain.gain.value = 0.001; // практически ноль
+
+      // 3. Создаём MediaStream из AudioContext
+      const dest = this.ctx.createMediaStreamDestination();
+      osc.connect(gain);
+      gain.connect(dest);
+      gain.connect(this.ctx.destination); // нужно для системы
+      osc.start();
+
+      // 4. Audio element с потоком — ЭТО ключевой момент
+      // iOS распознаёт <audio> element как медиа-источник
+      this.audio = new Audio();
+      this.audio.srcObject = dest.stream;
+      this.audio.loop = true;
+      this.audio.play();
+
+      // 5. Регистрируем Media Session
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: '🎾 Матч начался',
+          artist: `${n1} vs ${n2}`,
+          album: 'Avride Tennis',
+        });
+
+        navigator.mediaSession.setActionHandler('previoustrack', () => {
+          if (this.onPrev) this.onPrev();
+        });
+
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+          if (this.onNext) this.onNext();
+        });
+
+        navigator.mediaSession.setActionHandler('pause', () => {
+          if (this.onPause) this.onPause();
+          // Возобновляем воспроизведение чтобы сессия не умерла
+          setTimeout(() => {
+            this.audio?.play().catch(()=>{});
+            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+          }, 150);
+        });
+
+        navigator.mediaSession.setActionHandler('play', () => {
+          this.audio?.play().catch(()=>{});
+          navigator.mediaSession.playbackState = 'playing';
+        });
+
+        navigator.mediaSession.playbackState = 'playing';
+      }
+
+      this.active = true;
+      this._osc = osc;
+      return true;
+    } catch(e) {
+      console.error("Watch activation failed:", e);
+      return false;
+    }
+  },
+
+  updateScore(text, n1, n2) {
     if ('mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({ title:'🎾 Match started', artist:`${n1} vs ${n2}`, album:'Avride Tennis' });
-      navigator.mediaSession.setActionHandler('previoustrack', ()=>{ if(this.onPrev) this.onPrev(); });
-      navigator.mediaSession.setActionHandler('nexttrack', ()=>{ if(this.onNext) this.onNext(); });
-      navigator.mediaSession.setActionHandler('pause', ()=>{
-        if(this.onPause) this.onPause();
-        setTimeout(()=>{ this.audio?.play().catch(()=>{}); if('mediaSession'in navigator) navigator.mediaSession.playbackState='playing'; },100);
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: `🎾 ${text}`,
+        artist: `${n1} vs ${n2}`,
+        album: 'Avride Tennis',
       });
-      navigator.mediaSession.setActionHandler('play', ()=>{ this.audio?.play().catch(()=>{}); });
-      navigator.mediaSession.playbackState = 'playing';
     }
-    this.active = true;
-  }
-
-  update(scoreText, n1, n2) {
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({ title:`🎾 ${scoreText}`, artist:`${n1} vs ${n2}`, album:'Avride Tennis' });
-    }
-  }
+  },
 
   stop() {
-    this.audio?.pause(); this.audio=null;
-    try { this._osc?.stop(); this._ctx?.close(); } catch {}
+    try { this._osc?.stop(); } catch {}
+    try { this.ctx?.close(); } catch {}
+    this.audio?.pause();
+    this.audio = null;
+    this.ctx = null;
     if ('mediaSession' in navigator) {
-      ['previoustrack','nexttrack','pause','play'].forEach(a=>navigator.mediaSession.setActionHandler(a,null));
+      ['previoustrack','nexttrack','pause','play'].forEach(a =>
+        navigator.mediaSession.setActionHandler(a, null)
+      );
     }
     this.active = false;
   }
-}
-const mediaRemote = new MediaRemote();
-
-/* ═══════════════════════════════════════════
-   CLAP DETECTOR — управление хлопками
-   ═══════════════════════════════════════════
-   1 хлопок = очко P1 | 2 = очко P2 | 3 = Undo
-*/
-class ClapDetector {
-  constructor() { this.active=false; this.onClap1=null; this.onClap2=null; this.onClap3=null; this._claps=[]; this._cd=false; this.threshold=0.35; }
-
-  async start() {
-    if (this.active) return false;
-    try {
-      this._stream = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
-      this._ctx = new (window.AudioContext||window.webkitAudioContext)();
-      const src = this._ctx.createMediaStreamSource(this._stream);
-      this._an = this._ctx.createAnalyser(); this._an.fftSize = 512;
-      src.connect(this._an); this.active = true; this._listen(); return true;
-    } catch(e) { return false; }
-  }
-
-  _listen() {
-    const data = new Uint8Array(this._an.frequencyBinCount);
-    let lastPeak = 0;
-    const check = () => {
-      if (!this.active) return;
-      this._an.getByteTimeDomainData(data);
-      let peak = 0;
-      for (let i=0;i<data.length;i++) { const v=Math.abs(data[i]-128)/128; if(v>peak) peak=v; }
-      const now = Date.now();
-      if (peak > this.threshold && !this._cd && now-lastPeak > 200) {
-        lastPeak = now; this._claps.push(now); this._cd = true;
-        setTimeout(()=>{this._cd=false;},200);
-        this._claps = this._claps.filter(t=>now-t<1200);
-        clearTimeout(this._evalT);
-        this._evalT = setTimeout(()=>{
-          const c = this._claps.length;
-          if (c>=3 && this.onClap3) this.onClap3();
-          else if (c===2 && this.onClap2) this.onClap2();
-          else if (c===1 && this.onClap1) this.onClap1();
-          this._claps = [];
-        }, 800);
-      }
-      requestAnimationFrame(check);
-    };
-    check();
-  }
-
-  stop() { this.active=false; this._stream?.getTracks().forEach(t=>t.stop()); try{this._ctx?.close();}catch{} }
-}
-const clapDetector = new ClapDetector();
+};
 
 /* ═══════════════════════════════════════════
    TENNIS ENGINE
    ═══════════════════════════════════════════ */
-function vibrate(p=25) { try{navigator.vibrate?.(p);}catch{} }
-function fmtTime(ms) { const s=Math.floor(ms/1000); return Math.floor(s/60)+":"+(s%60).toString().padStart(2,"0"); }
+function vibrate(p=25){try{navigator.vibrate?.(p)}catch{}}
+function fmtTime(ms){const s=Math.floor(ms/1000);return Math.floor(s/60)+":"+(s%60).toString().padStart(2,"0")}
+function clone(o){return JSON.parse(JSON.stringify(o))}
 
-function freshMatch(sv) {
-  return { p1:0,p2:0,g1:0,g2:0,s1:0,s2:0,sets:[],total1:0,total2:0,tb:false,tb1:0,tb2:0,deuce:false,adv:false,advP:null,over:false,winner:null,server:sv,pointNum:0 };
+function freshMatch(sv){
+  return{p1:0,p2:0,g1:0,g2:0,s1:0,s2:0,sets:[],total1:0,total2:0,tb:false,tb1:0,tb2:0,deuce:false,adv:false,advP:null,over:false,winner:null,server:sv,pointNum:0};
 }
-function clone(o) { return JSON.parse(JSON.stringify(o)); }
-
-function winGame(s,p) {
-  if(p===1)s.g1++;else s.g2++; s.p1=0;s.p2=0;s.deuce=false;s.adv=false;s.advP=null;s.tb1=0;s.tb2=0;s.tb=false;
+function winGame(s,p){
+  if(p===1)s.g1++;else s.g2++;s.p1=0;s.p2=0;s.deuce=false;s.adv=false;s.advP=null;s.tb1=0;s.tb2=0;s.tb=false;
   s.server=s.server===1?2:1;
-  if(s.g1>=6&&s.g1-s.g2>=2) return winSet(s,1); if(s.g2>=6&&s.g2-s.g1>=2) return winSet(s,2);
-  if(s.g1===6&&s.g2===6) s.tb=true; return s;
+  if(s.g1>=6&&s.g1-s.g2>=2)return winSet(s,1);if(s.g2>=6&&s.g2-s.g1>=2)return winSet(s,2);
+  if(s.g1===6&&s.g2===6)s.tb=true;return s;
 }
-function winSet(s,p) {
-  s.sets.push({a:s.g1,b:s.g2}); if(p===1)s.s1++;else s.s2++; s.g1=0;s.g2=0;
-  if(s.s1>=2){s.over=true;s.winner=1;} if(s.s2>=2){s.over=true;s.winner=2;} return s;
+function winSet(s,p){
+  s.sets.push({a:s.g1,b:s.g2});if(p===1)s.s1++;else s.s2++;s.g1=0;s.g2=0;
+  if(s.s1>=2){s.over=true;s.winner=1;}if(s.s2>=2){s.over=true;s.winner=2;}return s;
 }
-function doPoint(prev,p) {
-  const s=clone(prev); if(s.over)return s; s.pointNum++; if(p===1)s.total1++;else s.total2++;
+function doPoint(prev,p){
+  const s=clone(prev);if(s.over)return s;s.pointNum++;if(p===1)s.total1++;else s.total2++;
   if(s.tb){if(p===1)s.tb1++;else s.tb2++;s.p1=s.tb1;s.p2=s.tb2;if((s.tb1+s.tb2)%2===1)s.server=s.server===1?2:1;if(s.tb1>=7&&s.tb1-s.tb2>=2)return winGame(s,1);if(s.tb2>=7&&s.tb2-s.tb1>=2)return winGame(s,2);return s;}
   if(s.p1>=3&&s.p2>=3){if(s.adv){if(s.advP===p)return winGame(s,p);s.adv=false;s.advP=null;s.deuce=true;return s;}if(s.deuce||(s.p1===3&&s.p2===3)){s.deuce=false;s.adv=true;s.advP=p;return s;}}
-  if(p===1)s.p1++;else s.p2++; if(s.p1>=4)return winGame(s,1);if(s.p2>=4)return winGame(s,2);
-  if(s.p1===3&&s.p2===3)s.deuce=true; return s;
+  if(p===1)s.p1++;else s.p2++;if(s.p1>=4)return winGame(s,1);if(s.p2>=4)return winGame(s,2);
+  if(s.p1===3&&s.p2===3)s.deuce=true;return s;
 }
-function getPts(m,p) {
-  if(m.tb)return p===1?String(m.tb1):String(m.tb2); if(m.deuce)return"40";
-  if(m.adv)return m.advP===p?"AD":"40"; const v=p===1?m.p1:m.p2; return PTS[v]||String(v);
+function getPts(m,p){
+  if(m.tb)return p===1?String(m.tb1):String(m.tb2);if(m.deuce)return"40";
+  if(m.adv)return m.advP===p?"AD":"40";const v=p===1?m.p1:m.p2;return PTS[v]||String(v);
 }
-function getScoreText(m,n1,n2) {
-  if(m.over)return(m.winner===1?n1:n2)+" wins!"; if(m.tb)return`TB ${m.tb1}–${m.tb2}`;
-  if(m.deuce)return"Deuce"; if(m.adv)return`AD ${m.advP===1?n1:n2}`;
-  return`${PTS[m.p1]}–${PTS[m.p2]}`;
+function getScoreText(m,n1,n2){
+  if(m.over)return(m.winner===1?n1:n2)+" wins!";if(m.tb)return`TB ${m.tb1}–${m.tb2}`;
+  if(m.deuce)return"Deuce";if(m.adv)return`AD ${m.advP===1?n1:n2}`;return`${PTS[m.p1]}–${PTS[m.p2]}`;
 }
-function checkSwitch(m) {
-  if(m.over)return false; if(m.tb){const x=m.tb1+m.tb2;return x>0&&x%6===0;}
-  const g=m.g1+m.g2; return g>0&&g%2!==0&&m.p1===0&&m.p2===0;
+function checkSwitch(m){
+  if(m.over)return false;if(m.tb){const x=m.tb1+m.tb2;return x>0&&x%6===0;}
+  const g=m.g1+m.g2;return g>0&&g%2!==0&&m.p1===0&&m.p2===0;
 }
 
 /* ═══════════════════════════════════════════
-   COMPONENTS
+   COIN TOSS
    ═══════════════════════════════════════════ */
+function CoinToss({p1,p2,onResult}){
+  const[phase,setPhase]=useState("idle");
+  const[result,setResult]=useState(null);
+  const toss=()=>{vibrate(40);setPhase("spinning");const w=Math.random()<.5?1:2;setTimeout(()=>{setResult(w);setPhase("done");vibrate([20,60,20]);},1500);};
 
-function CoinToss({p1,p2,onResult}) {
-  const [phase,setPhase]=useState("idle");
-  const [result,setResult]=useState(null);
-  const toss = ()=>{ vibrate(40); setPhase("spinning"); const w=Math.random()<.5?1:2; setTimeout(()=>{setResult(w);setPhase("done");vibrate([20,60,20]);},1500); };
-
-  return (
+  return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:24,padding:"0 20px",width:"100%",height:"100%"}}>
       <p style={{fontSize:11,color:"#666",fontFamily:"'DM Mono',monospace",letterSpacing:3}}>WHO SERVES FIRST?</p>
-      <div style={{width:120,height:120,borderRadius:"50%",background:phase==="spinning"?"conic-gradient(#C8FF00,#07090A,#C8FF00,#07090A,#C8FF00)":result?"linear-gradient(135deg,#C8FF00,#8BA600)":"#1a1f1a",border:`3px solid ${result?lime:"#333"}`,display:"flex",alignItems:"center",justifyContent:"center",animation:phase==="spinning"?"spin 0.3s linear infinite":"none",cursor:phase==="idle"?"pointer":"default"}} onClick={phase==="idle"?toss:undefined}>
-        {phase!=="done" ? <span style={{fontSize:36}}>🎾</span> :
-          <div style={{textAlign:"center"}}><div style={{fontSize:10,fontWeight:800,color:bg}}>WON</div><div style={{fontSize:14,fontWeight:900,color:bg}}>{result===1?p1:p2}</div></div>
+      <div style={{width:120,height:120,borderRadius:"50%",background:phase==="spinning"?"conic-gradient(#C8FF00,#07090A,#C8FF00,#07090A,#C8FF00)":result?"linear-gradient(135deg,#C8FF00,#8BA600)":"#1a1f1a",border:`3px solid ${result?L:"#333"}`,display:"flex",alignItems:"center",justifyContent:"center",animation:phase==="spinning"?"spin 0.3s linear infinite":"none",cursor:phase==="idle"?"pointer":"default"}} onClick={phase==="idle"?toss:undefined}>
+        {phase!=="done"?<span style={{fontSize:36}}>🎾</span>:
+          <div style={{textAlign:"center"}}><div style={{fontSize:10,fontWeight:800,color:BG}}>WON</div><div style={{fontSize:14,fontWeight:900,color:BG}}>{result===1?p1:p2}</div></div>
         }
       </div>
-      {phase==="idle"&&<p style={{color:"#888",fontSize:14}}>Tap to toss</p>}
+      {phase==="idle"&&<p style={{color:"#888",fontSize:14}}>Нажми для жребия</p>}
       {phase==="done"&&(
         <div style={{textAlign:"center",animation:"fadeUp 0.3s ease"}}>
-          <p style={{color:lime,fontWeight:700,marginBottom:15}}>{result===1?p1:p2} serves!</p>
+          <p style={{color:L,fontWeight:700,marginBottom:15}}>{result===1?p1:p2} подаёт!</p>
           <div style={{display:"flex",gap:10}}>
-            <button onClick={()=>onResult(result)} style={{padding:"14px 28px",background:lime,borderRadius:10,color:bg,fontWeight:800,fontSize:14}}>Start ✓</button>
-            <button onClick={()=>onResult(result===1?2:1)} style={{padding:"14px 28px",background:"#222",borderRadius:10,color:"#aaa",fontWeight:700,fontSize:14}}>Swap</button>
+            <button onClick={()=>onResult(result)} style={{padding:"14px 28px",background:L,borderRadius:10,color:BG,fontWeight:800,fontSize:14}}>Начать ✓</button>
+            <button onClick={()=>onResult(result===1?2:1)} style={{padding:"14px 28px",background:"#222",borderRadius:10,color:"#aaa",fontWeight:700,fontSize:14}}>Поменять</button>
           </div>
         </div>
       )}
@@ -218,81 +220,169 @@ function CoinToss({p1,p2,onResult}) {
 }
 
 /* ═══════════════════════════════════════════
+   WATCH CONNECT SCREEN
+   ═══════════════════════════════════════════ */
+function WatchConnect({p1,p2,server,onReady}){
+  const[status,setStatus]=useState("idle"); // idle | connecting | connected | failed
+
+  const connect=()=>{
+    setStatus("connecting");
+    // Активируем на жесте пользователя — критично для iOS
+    const ok = WatchRemote.activate(p1,p2);
+    setTimeout(()=>{
+      if(ok && WatchRemote.active){
+        setStatus("connected");
+        vibrate([20,40,20]);
+      } else {
+        setStatus("failed");
+      }
+    },1000);
+  };
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",padding:24,animation:"fadeUp 0.4s ease"}}>
+      {/* Watch icon */}
+      <div style={{width:80,height:80,borderRadius:20,background:status==="connected"?"rgba(200,255,0,0.1)":"rgba(255,255,255,0.03)",border:`2px solid ${status==="connected"?L:"#333"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:36,marginBottom:20,transition:"all 0.5s",animation:status==="connected"?"pulse 2s infinite":"none"}}>
+        ⌚
+      </div>
+
+      <h2 style={{fontSize:20,fontWeight:800,color:"#fff",marginBottom:6,fontFamily:"'Outfit',sans-serif"}}>
+        {status==="connected"?"Watch подключены!":"Подключи Apple Watch"}
+      </h2>
+
+      {status==="idle"&&(
+        <>
+          <p style={{color:"#666",fontSize:13,textAlign:"center",lineHeight:1.8,marginBottom:24,maxWidth:300}}>
+            Телефон создаст аудиосессию.<br/>
+            На часах появится пульт <strong style={{color:"#aaa"}}>Now Playing</strong>
+          </p>
+
+          <div style={{background:"rgba(255,255,255,0.03)",borderRadius:14,padding:18,marginBottom:24,width:"100%",maxWidth:300}}>
+            <p style={{fontSize:10,color:"#555",fontFamily:"'DM Mono',monospace",letterSpacing:2,marginBottom:12}}>УПРАВЛЕНИЕ С ЧАСОВ</p>
+            <div style={{fontSize:13,color:"#888",lineHeight:2.2}}>
+              <div>⏮ <strong style={{color:L}}>Prev</strong> — очко {p1}</div>
+              <div>⏭ <strong style={{color:L}}>Next</strong> — очко {p2}</div>
+              <div>⏸ <strong style={{color:L}}>Pause</strong> — отмена (Undo)</div>
+            </div>
+          </div>
+
+          <button onClick={connect} style={{width:"100%",maxWidth:300,padding:18,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:16}}>
+            Активировать ⌚
+          </button>
+          <button onClick={()=>onReady(false)} style={{marginTop:12,padding:"12px 24px",background:"transparent",color:"#555",fontSize:13,fontWeight:600}}>
+            Без часов →
+          </button>
+        </>
+      )}
+
+      {status==="connecting"&&(
+        <div style={{marginTop:20}}>
+          <div style={{width:40,height:40,border:"3px solid #333",borderTopColor:L,borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"0 auto 16px"}}/>
+          <p style={{color:"#888",fontSize:13}}>Активация аудиосессии...</p>
+        </div>
+      )}
+
+      {status==="connected"&&(
+        <div style={{animation:"fadeUp 0.3s ease",textAlign:"center"}}>
+          <p style={{color:"#888",fontSize:13,marginBottom:6}}>Сессия активна</p>
+
+          <div style={{background:"rgba(200,255,0,0.06)",border:"1px solid rgba(200,255,0,0.15)",borderRadius:12,padding:16,marginBottom:24,maxWidth:300}}>
+            <p style={{fontSize:12,color:"#aaa",lineHeight:1.8}}>
+              Открой <strong style={{color:"#fff"}}>Now Playing</strong> на часах.<br/>
+              Если не видно — смахни вверх на циферблате<br/>
+              или открой приложение <strong style={{color:"#fff"}}>«Воспроизведение»</strong>
+            </p>
+          </div>
+
+          <button onClick={()=>onReady(true)} style={{width:"100%",maxWidth:300,padding:18,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:16}}>
+            Начать матч 🎾
+          </button>
+        </div>
+      )}
+
+      {status==="failed"&&(
+        <div style={{animation:"fadeUp 0.3s ease",textAlign:"center"}}>
+          <p style={{color:"#ff6b6b",fontSize:13,marginBottom:20}}>
+            Не удалось запустить аудио.<br/>
+            Попробуй ещё раз или играй через экран.
+          </p>
+          <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+            <button onClick={connect} style={{padding:"14px 24px",background:"#222",borderRadius:10,color:"#aaa",fontWeight:700,fontSize:14}}>Повторить</button>
+            <button onClick={()=>onReady(false)} style={{padding:"14px 24px",background:L,borderRadius:10,color:BG,fontWeight:800,fontSize:14}}>Без часов</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
    MAIN APP
    ═══════════════════════════════════════════ */
-function TennisScoreboard() {
-  const [screen,setScreen]=useState("setup");
-  const [p1,setP1]=useState("Player 1");
-  const [p2,setP2]=useState("Player 2");
-  const [match,setMatch]=useState(null);
-  const [hist,setHist]=useState([]);
-  const [elapsed,setElapsed]=useState(0);
-  const [flash,setFlash]=useState(null);
-  const [watchOn,setWatchOn]=useState(false);
-  const [clapOn,setClapOn]=useState(false);
-  const [remoteMsg,setRemoteMsg]=useState(null);
-  const timerRef=useRef(null); const startRef=useRef(null); const wlRef=useRef(null);
-  const mRef=useRef(null); const hRef=useRef([]); const p1R=useRef(p1); const p2R=useRef(p2);
-  mRef.current=match; hRef.current=hist; p1R.current=p1; p2R.current=p2;
+function App(){
+  const[screen,setScreen]=useState("setup"); // setup|toss|watch|match|final
+  const[p1,setP1]=useState("Player 1");
+  const[p2,setP2]=useState("Player 2");
+  const[match,setMatch]=useState(null);
+  const[hist,setHist]=useState([]);
+  const[elapsed,setElapsed]=useState(0);
+  const[flash,setFlash]=useState(null);
+  const[watchOn,setWatchOn]=useState(false);
+  const[remoteMsg,setRemoteMsg]=useState(null);
+  const[serverChoice,setServerChoice]=useState(1);
+  const timerRef=useRef(null);const startRef=useRef(null);const wlRef=useRef(null);
+  const mRef=useRef(null);const hRef=useRef([]);const p1R=useRef(p1);const p2R=useRef(p2);
+  mRef.current=match;hRef.current=hist;p1R.current=p1;p2R.current=p2;
 
-  const rMsg=(t)=>{ setRemoteMsg(t); setTimeout(()=>setRemoteMsg(null),2000); };
+  const rMsg=(t)=>{setRemoteMsg(t);setTimeout(()=>setRemoteMsg(null),2500);};
 
-  const score = useCallback((p,source)=>{
-    const m=mRef.current; if(!m||m.over)return; vibrate(30);
-    setHist(h=>[...h,clone(m)]); const next=doPoint(m,p); setMatch(next);
-    setFlash(p); setTimeout(()=>setFlash(null),300);
-    mediaRemote.update(getScoreText(next,p1R.current,p2R.current),p1R.current,p2R.current);
-    if(source) rMsg(source);
-    if(next.over) setTimeout(()=>{clearInterval(timerRef.current);wlRef.current?.release();mediaRemote.stop();setWatchOn(false);clapDetector.stop();setClapOn(false);setScreen("final");},1500);
+  // Score
+  const score=useCallback((p,src)=>{
+    const m=mRef.current;if(!m||m.over)return;vibrate(30);
+    setHist(h=>[...h,clone(m)]);const next=doPoint(m,p);setMatch(next);
+    setFlash(p);setTimeout(()=>setFlash(null),300);
+    WatchRemote.updateScore(getScoreText(next,p1R.current,p2R.current),p1R.current,p2R.current);
+    if(src)rMsg(src);
+    if(next.over)setTimeout(()=>{clearInterval(timerRef.current);wlRef.current?.release();WatchRemote.stop();setWatchOn(false);setScreen("final");},1500);
   },[]);
 
-  const undo = useCallback((source)=>{
-    const h=hRef.current; if(h.length===0)return; vibrate(20);
-    setMatch(h[h.length-1]); setHist(x=>x.slice(0,-1));
-    if(source) rMsg(source);
+  // Undo
+  const undo=useCallback((src)=>{
+    const h=hRef.current;if(h.length===0)return;vibrate(20);
+    setMatch(h[h.length-1]);setHist(x=>x.slice(0,-1));
+    if(src)rMsg(src);
   },[]);
 
-  const startMatch = useCallback((sv)=>{
-    setMatch(freshMatch(sv)); setHist([]); setElapsed(0); setScreen("match");
-    startRef.current=Date.now(); timerRef.current=setInterval(()=>setElapsed(Date.now()-startRef.current),1000);
-    (async()=>{try{if("wakeLock"in navigator)wlRef.current=await navigator.wakeLock.request("screen");}catch{}})();
-    // Auto-start Watch remote
-    setTimeout(()=>{
-      mediaRemote.onPrev=()=>score(1,"⌚ ⏮ → "+p1);
-      mediaRemote.onNext=()=>score(2,"⌚ ⏭ → "+p2);
-      mediaRemote.onPause=()=>undo("⌚ ⏸ → Undo");
-      mediaRemote.start(p1,p2); setWatchOn(true);
-    },500);
-  },[p1,p2,score,undo]);
+  // Toss → save server → go to watch connect
+  const onTossResult=(sv)=>{
+    setServerChoice(sv);
+    setScreen("watch");
+  };
 
-  const toggleClap = useCallback(async()=>{
-    if(clapOn){clapDetector.stop();setClapOn(false);}
-    else {
-      const ok=await clapDetector.start();
-      if(ok){
-        clapDetector.onClap1=()=>score(1,"👏×1 → "+p1R.current);
-        clapDetector.onClap2=()=>score(2,"👏×2 → "+p2R.current);
-        clapDetector.onClap3=()=>undo("👏×3 → Undo");
-        setClapOn(true);
-      }
+  // Watch connect done → start match
+  const onWatchReady=(connected)=>{
+    setWatchOn(connected);
+    // Wire up Watch buttons
+    if(connected){
+      WatchRemote.onPrev=()=>score(1,"⌚ ⏮ "+p1R.current);
+      WatchRemote.onNext=()=>score(2,"⌚ ⏭ "+p2R.current);
+      WatchRemote.onPause=()=>undo("⌚ ⏸ Undo");
     }
-  },[clapOn,score,undo]);
+    // Start match
+    setMatch(freshMatch(serverChoice));setHist([]);setElapsed(0);setScreen("match");
+    startRef.current=Date.now();timerRef.current=setInterval(()=>setElapsed(Date.now()-startRef.current),1000);
+    (async()=>{try{if("wakeLock"in navigator)wlRef.current=await navigator.wakeLock.request("screen");}catch{}})();
+  };
 
-  const endMatch=()=>{clearInterval(timerRef.current);mediaRemote.stop();setWatchOn(false);clapDetector.stop();setClapOn(false);wlRef.current?.release();setScreen("final");};
-  const reset=()=>{clearInterval(timerRef.current);mediaRemote.stop();setWatchOn(false);clapDetector.stop();setClapOn(false);wlRef.current?.release();setScreen("setup");};
+  const endMatch=()=>{clearInterval(timerRef.current);WatchRemote.stop();setWatchOn(false);wlRef.current?.release();setScreen("final");};
+  const reset=()=>{clearInterval(timerRef.current);WatchRemote.stop();setWatchOn(false);wlRef.current?.release();setScreen("setup");};
 
-  useEffect(()=>{
-    if(screen!=="match")return;
-    const f=(e)=>{if(e.key==="ArrowLeft"||e.key==="1")score(1);else if(e.key==="ArrowRight"||e.key==="2")score(2);else if(e.key==="z"||e.key==="Z")undo();};
-    window.addEventListener("keydown",f); return()=>window.removeEventListener("keydown",f);
-  },[screen,score,undo]);
+  useEffect(()=>()=>{clearInterval(timerRef.current);WatchRemote.stop();wlRef.current?.release();},[]);
 
-  useEffect(()=>()=>{clearInterval(timerRef.current);mediaRemote.stop();clapDetector.stop();wlRef.current?.release();},[]);
+  const sw=match?checkSwitch(match):false;
 
-  const sw = match ? checkSwitch(match) : false;
-
-  return (
-    <div style={{fontFamily:"'Outfit',sans-serif",height:"100vh",height:"100dvh",background:bg,color:"white",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+  return(
+    <div style={{fontFamily:"'Outfit',sans-serif",height:"100vh",height:"100dvh",background:BG,color:"white",display:"flex",flexDirection:"column",overflow:"hidden"}}>
 
       {/* ════════ SETUP ════════ */}
       {screen==="setup"&&(
@@ -303,40 +393,36 @@ function TennisScoreboard() {
           <div style={{width:"100%",maxWidth:340}}>
             <input value={p1} onChange={e=>setP1(e.target.value)} placeholder="Player 1" style={{width:"100%",padding:15,marginBottom:15,borderRadius:10,background:"#1a1a1a",border:"1px solid #333",color:"white",fontSize:16,fontFamily:"inherit",fontWeight:600}} />
             <input value={p2} onChange={e=>setP2(e.target.value)} placeholder="Player 2" style={{width:"100%",padding:15,marginBottom:24,borderRadius:10,background:"#1a1a1a",border:"1px solid #333",color:"white",fontSize:16,fontFamily:"inherit",fontWeight:600}} />
-            <button onClick={()=>setScreen("toss")} style={{width:"100%",padding:18,borderRadius:12,background:lime,color:"black",fontWeight:800,fontSize:16}}>CONTINUE</button>
-
-            {/* Remote control guide */}
-            <div style={{marginTop:28,background:"rgba(255,255,255,0.03)",borderRadius:12,padding:16}}>
-              <p style={{fontSize:10,color:"#555",fontFamily:"'DM Mono',monospace",letterSpacing:2,marginBottom:12}}>🎮 REMOTE CONTROL</p>
-              <div style={{fontSize:12,color:"#777",lineHeight:2}}>
-                <div><span style={{color:lime}}>⌚ Apple Watch</span> — «Now Playing»</div>
-                <div style={{fontSize:10,color:"#555",marginLeft:20,marginTop:-2,marginBottom:6}}>⏮ очко P1 · ⏭ очко P2 · ⏸ отмена<br/>Включается автоматически!</div>
-                <div><span style={{color:"#FF9500"}}>👏 Хлопки</span> — 1× P1 · 2× P2 · 3× Undo</div>
-                <div style={{fontSize:10,color:"#555",marginLeft:20,marginTop:-2,marginBottom:6}}>Включается кнопкой 👏 во время матча</div>
-                <div><span style={{color:"#aaa"}}>⌨️ BT-кликер</span> — ← → стрелки, Z undo</div>
-              </div>
-            </div>
+            <button onClick={()=>setScreen("toss")} style={{width:"100%",padding:18,borderRadius:12,background:L,color:"black",fontWeight:800,fontSize:16}}>CONTINUE</button>
           </div>
         </div>
       )}
 
       {/* ════════ TOSS ════════ */}
-      {screen==="toss"&&<CoinToss p1={p1} p2={p2} onResult={startMatch} />}
+      {screen==="toss"&&<CoinToss p1={p1} p2={p2} onResult={onTossResult}/>}
+
+      {/* ════════ WATCH CONNECT ════════ */}
+      {screen==="watch"&&<WatchConnect p1={p1} p2={p2} server={serverChoice} onReady={onWatchReady}/>}
 
       {/* ════════ MATCH ════════ */}
       {screen==="match"&&match&&(
         <div style={{flex:1,display:"flex",flexDirection:"column"}}>
 
-          {/* Remote status bar */}
+          {/* Watch status bar */}
           <div style={{display:"flex",alignItems:"center",gap:6,padding:"7px 15px",borderBottom:"1px solid #151515",fontSize:10,fontFamily:"'DM Mono',monospace"}}>
-            {watchOn&&<span style={{color:lime,display:"flex",alignItems:"center",gap:3}}><span style={{fontSize:13}}>⌚</span>Watch</span>}
-            {clapOn&&<span style={{color:"#FF9500",display:"flex",alignItems:"center",gap:3}}><span style={{fontSize:13}}>👏</span>Clap</span>}
-            {!watchOn&&!clapOn&&<span style={{color:"#333"}}>No remote</span>}
+            {watchOn?(
+              <span style={{color:L,display:"flex",alignItems:"center",gap:4}}>
+                <span style={{width:6,height:6,borderRadius:"50%",background:L,display:"inline-block"}}/>
+                ⌚ Watch connected
+              </span>
+            ):(
+              <span style={{color:"#444"}}>📱 Touchscreen only</span>
+            )}
             <span style={{flex:1}}/>
-            {remoteMsg&&<span style={{color:"#888",animation:"popIn 0.2s ease"}}>{remoteMsg}</span>}
+            {remoteMsg&&<span style={{color:L,animation:"popIn 0.2s ease",fontWeight:500}}>{remoteMsg}</span>}
           </div>
 
-          {/* Top bar */}
+          {/* Timer bar */}
           <div style={{padding:"10px 15px",display:"flex",justifyContent:"space-between",color:"#666",fontSize:13,fontFamily:"'DM Mono',monospace"}}>
             <span>{fmtTime(elapsed)}</span>
             <span>{match.tb?"TIEBREAK":`SET ${match.sets.length+1}`}</span>
@@ -344,27 +430,26 @@ function TennisScoreboard() {
           </div>
 
           {/* Switch sides */}
-          {sw&&(<div style={{background:lime,color:"black",textAlign:"center",padding:8,fontWeight:900,letterSpacing:1,animation:"blink 1s infinite",fontSize:14}}>🔁 CHANGE ENDS</div>)}
+          {sw&&<div style={{background:L,color:"black",textAlign:"center",padding:8,fontWeight:900,letterSpacing:1,animation:"blink 1s infinite",fontSize:14}}>🔁 CHANGE ENDS</div>}
 
           {/* Scoreboard */}
           <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",padding:10}}>
             {match.sets.length>0&&(
               <div style={{display:"flex",justifyContent:"center",gap:15,marginBottom:10,fontSize:14,fontFamily:"'DM Mono',monospace"}}>
                 {match.sets.map((s,i)=>(
-                  <span key={i} style={{color:"#888"}}><span style={{color:s.a>s.b?lime:"#888"}}>{s.a}</span>-<span style={{color:s.b>s.a?lime:"#888"}}>{s.b}</span></span>
+                  <span key={i}><span style={{color:s.a>s.b?L:"#888"}}>{s.a}</span><span style={{color:"#444"}}>-</span><span style={{color:s.b>s.a?L:"#888"}}>{s.b}</span></span>
                 ))}
               </div>
             )}
-
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               {[1,2].map(pl=>{
-                const srv=match.server===pl, pts=getPts(match,pl);
-                return (
-                  <div key={pl} style={{background:flash===pl?"rgba(200,255,0,0.08)":"#121415",borderRadius:20,padding:20,textAlign:"center",position:"relative",border:srv?`1px solid ${lime}`:"1px solid #222",transition:"background 0.3s"}}>
-                    {srv&&<div style={{position:"absolute",top:10,right:10,width:8,height:8,background:lime,borderRadius:"50%",boxShadow:`0 0 6px ${lime}`}}/>}
+                const srv=match.server===pl,pts=getPts(match,pl);
+                return(
+                  <div key={pl} style={{background:flash===pl?"rgba(200,255,0,0.08)":"#121415",borderRadius:20,padding:20,textAlign:"center",position:"relative",border:srv?`1px solid ${L}`:"1px solid #222",transition:"background 0.3s"}}>
+                    {srv&&<div style={{position:"absolute",top:10,right:10,width:8,height:8,background:L,borderRadius:"50%",boxShadow:`0 0 6px ${L}`}}/>}
                     <div style={{color:"#aaa",fontWeight:700,fontSize:14,marginBottom:10,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{pl===1?p1:p2}</div>
                     <div style={{fontSize:24,fontWeight:800,marginBottom:10}}>{pl===1?match.g1:match.g2} <span style={{fontSize:10,color:"#444",fontWeight:400}}>GAMES</span></div>
-                    <div style={{fontSize:70,fontWeight:900,color:pts==="AD"?lime:"white",lineHeight:1}}>{pts}</div>
+                    <div style={{fontSize:70,fontWeight:900,color:pts==="AD"?L:"white",lineHeight:1}}>{pts}</div>
                     {srv&&<div style={{fontSize:9,color:"#555",fontFamily:"'DM Mono',monospace",marginTop:8,letterSpacing:2}}>SERVING</div>}
                   </div>
                 );
@@ -375,12 +460,11 @@ function TennisScoreboard() {
           {/* Controls */}
           <div style={{padding:"10px 15px 16px"}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-              <button onClick={()=>score(1)} style={{padding:28,borderRadius:16,background:"#1f2223",color:lime,fontSize:18,fontWeight:800,border:`1px solid ${lime}`}}>{p1}</button>
-              <button onClick={()=>score(2)} style={{padding:28,borderRadius:16,background:"#1f2223",color:lime,fontSize:18,fontWeight:800,border:`1px solid ${lime}`}}>{p2}</button>
+              <button onClick={()=>score(1)} style={{padding:28,borderRadius:16,background:"#1f2223",color:L,fontSize:18,fontWeight:800,border:`1px solid ${L}`}}>{p1}</button>
+              <button onClick={()=>score(2)} style={{padding:28,borderRadius:16,background:"#1f2223",color:L,fontSize:18,fontWeight:800,border:`1px solid ${L}`}}>{p2}</button>
             </div>
             <div style={{display:"flex",gap:8}}>
               <button onClick={()=>undo()} disabled={hist.length===0} style={{flex:1,padding:14,borderRadius:10,background:"#111",color:hist.length>0?"#777":"#333",border:"1px solid #252525",fontWeight:600,fontSize:13}}>↩ Undo</button>
-              <button onClick={toggleClap} style={{padding:"14px 16px",borderRadius:10,background:clapOn?"rgba(255,149,0,0.12)":"#111",color:clapOn?"#FF9500":"#555",border:`1px solid ${clapOn?"rgba(255,149,0,0.3)":"#252525"}`,fontWeight:700,fontSize:16,minWidth:48}}>👏</button>
               <button onClick={endMatch} style={{flex:1,padding:14,borderRadius:10,background:"#111",color:"#555",border:"1px solid #252525",fontWeight:600,fontSize:13}}>✕ End</button>
             </div>
           </div>
@@ -391,26 +475,19 @@ function TennisScoreboard() {
       {screen==="final"&&match&&(
         <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeUp 0.5s ease"}}>
           <div style={{fontSize:60,marginBottom:10}}>🏆</div>
-          <h2 style={{color:lime,fontSize:28,textTransform:"uppercase",marginBottom:5}}>{match.winner?`${match.winner===1?p1:p2} Wins!`:"Finished"}</h2>
-          <p style={{color:"#555",marginBottom:30}}>{fmtTime(elapsed)} match</p>
-
+          <h2 style={{color:L,fontSize:28,textTransform:"uppercase",marginBottom:5}}>{match.winner?`${match.winner===1?p1:p2} Wins!`:"Finished"}</h2>
+          <p style={{color:"#555",marginBottom:30}}>{fmtTime(elapsed)}</p>
           <div style={{width:"100%",maxWidth:350,background:"#121415",borderRadius:16,padding:20,marginBottom:20}}>
-            <div style={{display:"grid",gridTemplateColumns:"1.5fr repeat(3, 1fr)",marginBottom:15,borderBottom:"1px solid #222",paddingBottom:10,fontSize:12,color:"#555",fontFamily:"'DM Mono',monospace"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1.5fr repeat(3,1fr)",marginBottom:15,borderBottom:"1px solid #222",paddingBottom:10,fontSize:12,color:"#555",fontFamily:"'DM Mono',monospace"}}>
               <div>PLAYER</div><div style={{textAlign:"center"}}>SET 1</div><div style={{textAlign:"center"}}>SET 2</div><div style={{textAlign:"center"}}>SET 3</div>
             </div>
             {[1,2].map(pl=>(
-              <div key={pl} style={{display:"grid",gridTemplateColumns:"1.5fr repeat(3, 1fr)",marginBottom:pl===1?15:0,alignItems:"center"}}>
-                <div style={{fontWeight:700,color:match.winner===pl?lime:"white",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pl===1?p1:p2}</div>
-                {[0,1,2].map(i=>{
-                  const set=match.sets[i]; let val="-",col="#333";
-                  if(set){val=pl===1?set.a:set.b;col=(pl===1?set.a>set.b:set.b>set.a)?"white":"#666";}
-                  else if(!match.over&&match.sets.length===i){val=pl===1?match.g1:match.g2;col="#888";}
-                  return <div key={i} style={{textAlign:"center",fontWeight:700,fontSize:18,color:col}}>{val}</div>;
-                })}
+              <div key={pl} style={{display:"grid",gridTemplateColumns:"1.5fr repeat(3,1fr)",marginBottom:pl===1?15:0,alignItems:"center"}}>
+                <div style={{fontWeight:700,color:match.winner===pl?L:"white",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pl===1?p1:p2}</div>
+                {[0,1,2].map(i=>{const set=match.sets[i];let val="-",col="#333";if(set){val=pl===1?set.a:set.b;col=(pl===1?set.a>set.b:set.b>set.a)?"white":"#666";}else if(!match.over&&match.sets.length===i){val=pl===1?match.g1:match.g2;col="#888";}return<div key={i} style={{textAlign:"center",fontWeight:700,fontSize:18,color:col}}>{val}</div>;})}
               </div>
             ))}
           </div>
-
           <div style={{display:"flex",gap:10,width:"100%",maxWidth:350,marginBottom:30}}>
             {[1,2].map(pl=>(
               <div key={pl} style={{flex:1,background:"#1a1a1a",padding:15,borderRadius:12,textAlign:"center"}}>
@@ -420,15 +497,14 @@ function TennisScoreboard() {
               </div>
             ))}
           </div>
-
-          <button onClick={reset} style={{width:"100%",maxWidth:350,padding:18,borderRadius:12,background:lime,color:"black",fontWeight:800,fontSize:16}}>NEW MATCH</button>
+          <button onClick={reset} style={{width:"100%",maxWidth:350,padding:18,borderRadius:12,background:L,color:"black",fontWeight:800,fontSize:16}}>NEW MATCH</button>
         </div>
       )}
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<TennisScoreboard />);
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>
