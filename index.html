@@ -2,595 +2,438 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#07090A">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Avride Tennis</title>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
-    body, html { margin: 0; padding: 0; background: #07090A; height: 100%; overflow: hidden; overscroll-behavior: none; }
-    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700;800;900&display=swap');
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    button { border: none; font-family: inherit; cursor: pointer; }
-    input:focus { outline: none; border-color: #C8FF00 !important; }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes popIn { 0% { transform: scale(0.85); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-    @keyframes pulse { 0%, 100% { box-shadow: 0 0 12px rgba(200,255,0,0.2); } 50% { box-shadow: 0 0 30px rgba(200,255,0,0.5); } }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+    :root{--lime:#C8FF00;--bg:#07090A;--card:#111214;--card2:#161819;--border:#1e2022;--text:#ffffff;--text2:#a0a4a8;--text3:#5a5e62;--font:'Outfit',sans-serif;--mono:'DM Mono',monospace}
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);font-family:var(--font)}
+    #root{height:100%;height:100dvh}
+    button{border:none;font-family:var(--font);cursor:pointer;-webkit-appearance:none}
+    button:active{transform:scale(0.97);transition:transform 0.1s}
+    input{font-family:var(--font);-webkit-appearance:none}
+    input:focus{outline:none}
+    ::selection{background:rgba(200,255,0,0.3)}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    @keyframes glow{0%,100%{box-shadow:0 0 16px rgba(200,255,0,.15)}50%{box-shadow:0 0 32px rgba(200,255,0,.35)}}
+    @keyframes slideDown{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
+    @keyframes popIn{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+    @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
   </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useCallback, useRef } = React;
-const PTS = ["0", "15", "30", "40"];
-const L = "#C8FF00", BG = "#07090A";
+const {useState,useEffect,useCallback,useRef}=React;
+const PTS=["0","15","30","40"];
+const L="#C8FF00",BG="#07090A";
 
-/* ═══════════════════════════════════════════
-   MEDIA SESSION ENGINE — Apple Watch
-   ═══════════════════════════════════════════
-   Creates a silent audio stream that iOS
-   recognizes as active media playback. 
-   The Watch sees 'Now Playing' and shows controls.
-*/
-const WatchRemote = {
-  ctx: null,
-  audio: null,
-  active: false,
-  onPrev: null,
-  onNext: null,
-  onPause: null,
+/* ═══════════════ SVG ICONS ═══════════════ */
+const Icon=({d,size=20,color="#fff",style={}})=>(
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+    <path d={d}/>
+  </svg>
+);
 
-  activate(n1, n2) {
-    if (this.active) return true;
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      this.ctx = new AC();
+const Icons={
+  undo:"M3 10h10a5 5 0 0 1 0 10H3 M3 10l4-4 M3 10l4 4",
+  end:"M18 6L6 18 M6 6l12 12",
+  swap:"M7 16V4m0 0L3 8m4-4l4 4 M17 8v12m0 0l4-4m-4 4l-4-4",
+  check:"M20 6L9 17l-5-5",
+  play:"M5 3l14 9-14 9V3z",
+  watch:"M9 2h6 M12 22v-2 M12 2v2 M7 4h10v16H7V4z M10 9h4 M10 12h4",
+  court:"M4 4h16v16H4V4z M12 4v16 M4 12h16",
+  skip_prev:"M6 6h2v12H6z M20 6l-10 6 10 6z",
+  skip_next:"M16 6h2v12h-2z M4 6l10 6-10 6z",
+  pause:"M6 4h4v16H6z M14 4h4v16h-4z",
+};
 
-      // Generate a silent 1Hz audio stream
-      const osc = this.ctx.createOscillator();
-      osc.frequency.value = 1; 
-      const gain = this.ctx.createGain();
-      gain.gain.value = 0.001; 
+/* ═══════════════ MEDIA SESSION ═══════════════ */
+const WatchRemote={
+  ctx:null,audio:null,active:false,onPrev:null,onNext:null,onPause:null,
 
-      const dest = this.ctx.createMediaStreamDestination();
-      osc.connect(gain);
-      gain.connect(dest);
-      gain.connect(this.ctx.destination); 
-      osc.start();
-
-      // Audio element powered by the stream
-      this.audio = new Audio();
-      this.audio.srcObject = dest.stream;
-      this.audio.loop = true;
-      this.audio.play();
-
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: '🎾 Match Started',
-          artist: `${n1} vs ${n2}`,
-          album: 'Avride Tennis',
-        });
-
-        navigator.mediaSession.setActionHandler('previoustrack', () => {
-          if (this.onPrev) this.onPrev();
-        });
-
-        navigator.mediaSession.setActionHandler('nexttrack', () => {
-          if (this.onNext) this.onNext();
-        });
-
-        navigator.mediaSession.setActionHandler('pause', () => {
-          if (this.onPause) this.onPause();
-          // Resume playback instantly to keep session alive
-          setTimeout(() => {
-            this.audio?.play().catch(()=>{});
-            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
-          }, 150);
-        });
-
-        navigator.mediaSession.setActionHandler('play', () => {
-          this.audio?.play().catch(()=>{});
-          navigator.mediaSession.playbackState = 'playing';
-        });
-
-        navigator.mediaSession.playbackState = 'playing';
-      }
-
-      this.active = true;
-      this._osc = osc;
-      return true;
-    } catch(e) {
-      console.error("Watch activation failed:", e);
-      return false;
+  activate(n1,n2){
+    if(this.active)return true;
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext;
+      this.ctx=new AC();
+      const osc=this.ctx.createOscillator();osc.frequency.value=1;
+      const gain=this.ctx.createGain();gain.gain.value=0.001;
+      const dest=this.ctx.createMediaStreamDestination();
+      osc.connect(gain);gain.connect(dest);gain.connect(this.ctx.destination);osc.start();
+      this.audio=new Audio();this.audio.srcObject=dest.stream;this.audio.loop=true;this.audio.play();
+      this._osc=osc;
+    }catch(e){return false}
+    if('mediaSession'in navigator){
+      navigator.mediaSession.metadata=new MediaMetadata({title:'\uD83C\uDFBE Match Started',artist:`${n1} vs ${n2}`,album:'Avride Tennis'});
+      navigator.mediaSession.setActionHandler('previoustrack',()=>{if(this.onPrev)this.onPrev()});
+      navigator.mediaSession.setActionHandler('nexttrack',()=>{if(this.onNext)this.onNext()});
+      navigator.mediaSession.setActionHandler('pause',()=>{if(this.onPause)this.onPause();setTimeout(()=>{this.audio?.play().catch(()=>{});if('mediaSession'in navigator)navigator.mediaSession.playbackState='playing'},150)});
+      navigator.mediaSession.setActionHandler('play',()=>{this.audio?.play().catch(()=>{});navigator.mediaSession.playbackState='playing'});
+      navigator.mediaSession.playbackState='playing';
     }
+    this.active=true;return true;
   },
 
-  updateScore(text, n1, n2) {
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: `🎾 ${text}`,
-        artist: `${n1} vs ${n2}`,
-        album: 'Avride Tennis',
-      });
-    }
+  update(text,n1,n2){
+    if('mediaSession'in navigator)navigator.mediaSession.metadata=new MediaMetadata({title:`\uD83C\uDFBE ${text}`,artist:`${n1} vs ${n2}`,album:'Avride Tennis'});
   },
 
-  stop() {
-    try { this._osc?.stop(); } catch {}
-    try { this.ctx?.close(); } catch {}
-    this.audio?.pause();
-    this.audio = null;
-    this.ctx = null;
-    if ('mediaSession' in navigator) {
-      ['previoustrack','nexttrack','pause','play'].forEach(a =>
-        navigator.mediaSession.setActionHandler(a, null)
-      );
-    }
-    this.active = false;
+  stop(){
+    try{this._osc?.stop();this.ctx?.close()}catch{}
+    this.audio?.pause();this.audio=null;this.ctx=null;
+    if('mediaSession'in navigator)['previoustrack','nexttrack','pause','play'].forEach(a=>navigator.mediaSession.setActionHandler(a,null));
+    this.active=false;
   }
 };
 
-/* ═══════════════════════════════════════════
-   TENNIS ENGINE
-   ═══════════════════════════════════════════ */
-function vibrate(p=25) { try { navigator.vibrate?.(p) } catch {} }
-function fmtTime(ms) { 
-  const s = Math.floor(ms / 1000); 
-  return Math.floor(s / 60) + ":" + (s % 60).toString().padStart(2, "0"); 
-}
-function clone(o) { return JSON.parse(JSON.stringify(o)); }
+/* ═══════════════ TENNIS ENGINE ═══════════════ */
+const vib=(p=25)=>{try{navigator.vibrate?.(p)}catch{}};
+const fmt=ms=>{const s=Math.floor(ms/1000);return Math.floor(s/60)+":"+(s%60).toString().padStart(2,"0")};
+const clone=o=>JSON.parse(JSON.stringify(o));
 
-function freshMatch(sv) {
-  return {
-    p1: 0, p2: 0, g1: 0, g2: 0, s1: 0, s2: 0, 
-    sets: [], total1: 0, total2: 0, 
-    tb: false, tb1: 0, tb2: 0, 
-    deuce: false, adv: false, advP: null, 
-    over: false, winner: null, server: sv, pointNum: 0
-  };
+function fresh(sv){return{p1:0,p2:0,g1:0,g2:0,s1:0,s2:0,sets:[],t1:0,t2:0,tb:false,tb1:0,tb2:0,deuce:false,adv:false,advP:null,over:false,winner:null,server:sv,pn:0}}
+function wg(s,p){if(p===1)s.g1++;else s.g2++;s.p1=0;s.p2=0;s.deuce=false;s.adv=false;s.advP=null;s.tb1=0;s.tb2=0;s.tb=false;s.server=s.server===1?2:1;if(s.g1>=6&&s.g1-s.g2>=2)return wst(s,1);if(s.g2>=6&&s.g2-s.g1>=2)return wst(s,2);if(s.g1===6&&s.g2===6)s.tb=true;return s}
+function wst(s,p){s.sets.push({a:s.g1,b:s.g2});if(p===1)s.s1++;else s.s2++;s.g1=0;s.g2=0;if(s.s1>=2){s.over=true;s.winner=1}if(s.s2>=2){s.over=true;s.winner=2}return s}
+function pt(prev,p){const s=clone(prev);if(s.over)return s;s.pn++;if(p===1)s.t1++;else s.t2++;if(s.tb){if(p===1)s.tb1++;else s.tb2++;s.p1=s.tb1;s.p2=s.tb2;if((s.tb1+s.tb2)%2===1)s.server=s.server===1?2:1;if(s.tb1>=7&&s.tb1-s.tb2>=2)return wg(s,1);if(s.tb2>=7&&s.tb2-s.tb1>=2)return wg(s,2);return s}if(s.p1>=3&&s.p2>=3){if(s.adv){if(s.advP===p)return wg(s,p);s.adv=false;s.advP=null;s.deuce=true;return s}if(s.deuce||(s.p1===3&&s.p2===3)){s.deuce=false;s.adv=true;s.advP=p;return s}}if(p===1)s.p1++;else s.p2++;if(s.p1>=4)return wg(s,1);if(s.p2>=4)return wg(s,2);if(s.p1===3&&s.p2===3)s.deuce=true;return s}
+function gp(m,p){if(m.tb)return p===1?String(m.tb1):String(m.tb2);if(m.deuce)return"40";if(m.adv)return m.advP===p?"AD":"40";const v=p===1?m.p1:m.p2;return PTS[v]||String(v)}
+function gst(m,n1,n2){if(m.over)return(m.winner===1?n1:n2)+" wins!";if(m.tb)return`TB ${m.tb1}\u2013${m.tb2}`;if(m.deuce)return"Deuce";if(m.adv)return`AD ${m.advP===1?n1:n2}`;return`${PTS[m.p1]}\u2013${PTS[m.p2]}`}
+function chkSw(m){if(m.over)return false;if(m.tb){const x=m.tb1+m.tb2;return x>0&&x%6===0}const g=m.g1+m.g2;return g>0&&g%2!==0&&m.p1===0&&m.p2===0}
+
+/* ═══════════════ PILL BADGE ═══════════════ */
+function Badge({children,color=L,bg="rgba(200,255,0,0.08)",style={}}){
+  return <span style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:20,background:bg,color,fontSize:10,fontWeight:600,fontFamily:"var(--mono)",letterSpacing:1,...style}}>{children}</span>;
 }
 
-function winGame(s, p) {
-  if (p === 1) s.g1++; else s.g2++;
-  
-  s.p1 = 0; s.p2 = 0;
-  s.deuce = false; s.adv = false; s.advP = null;
-  s.tb1 = 0; s.tb2 = 0; s.tb = false;
-  s.server = s.server === 1 ? 2 : 1;
-  
-  if (s.g1 >= 6 && s.g1 - s.g2 >= 2) return winSet(s, 1);
-  if (s.g2 >= 6 && s.g2 - s.g1 >= 2) return winSet(s, 2);
-  if (s.g1 === 6 && s.g2 === 6) s.tb = true;
-  
-  return s;
-}
+/* ═══════════════ COIN TOSS ═══════════════ */
+function CoinToss({p1,p2,onResult}){
+  const[phase,setPhase]=useState("idle");
+  const[result,setResult]=useState(null);
+  const toss=()=>{vib(40);setPhase("spin");const w=Math.random()<.5?1:2;setTimeout(()=>{setResult(w);setPhase("done");vib([20,60,20])},1500)};
 
-function winSet(s, p) {
-  s.sets.push({ a: s.g1, b: s.g2 });
-  if (p === 1) s.s1++; else s.s2++;
-  s.g1 = 0; s.g2 = 0;
-  
-  if (s.s1 >= 2) { s.over = true; s.winner = 1; }
-  if (s.s2 >= 2) { s.over = true; s.winner = 2; }
-  return s;
-}
+  return(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20,padding:24,width:"100%",height:"100%",animation:"fadeIn .4s ease"}}>
+      <Badge color="var(--text3)" bg="rgba(255,255,255,0.04)">SERVE TOSS</Badge>
 
-function doPoint(prev, p) {
-  const s = clone(prev);
-  if (s.over) return s;
-  
-  s.pointNum++;
-  if (p === 1) s.total1++; else s.total2++;
-
-  // Tiebreak Logic
-  if (s.tb) {
-    if (p === 1) s.tb1++; else s.tb2++;
-    s.p1 = s.tb1; s.p2 = s.tb2;
-    
-    // Switch server every odd point total
-    if ((s.tb1 + s.tb2) % 2 === 1) s.server = s.server === 1 ? 2 : 1;
-    
-    if (s.tb1 >= 7 && s.tb1 - s.tb2 >= 2) return winGame(s, 1);
-    if (s.tb2 >= 7 && s.tb2 - s.tb1 >= 2) return winGame(s, 2);
-    return s;
-  }
-
-  // Deuce / Ad Logic
-  if (s.p1 >= 3 && s.p2 >= 3) {
-    if (s.adv) {
-      if (s.advP === p) return winGame(s, p);
-      s.adv = false; s.advP = null; s.deuce = true;
-      return s;
-    }
-    if (s.deuce || (s.p1 === 3 && s.p2 === 3)) {
-      s.deuce = false; s.adv = true; s.advP = p;
-      return s;
-    }
-  }
-
-  // Standard points
-  if (p === 1) s.p1++; else s.p2++;
-  if (s.p1 >= 4) return winGame(s, 1);
-  if (s.p2 >= 4) return winGame(s, 2);
-  if (s.p1 === 3 && s.p2 === 3) s.deuce = true;
-  
-  return s;
-}
-
-function getPts(m, p) {
-  if (m.tb) return p === 1 ? String(m.tb1) : String(m.tb2);
-  if (m.deuce) return "40";
-  if (m.adv) return m.advP === p ? "AD" : "40";
-  const v = p === 1 ? m.p1 : m.p2;
-  return PTS[v] || String(v);
-}
-
-function getScoreText(m, n1, n2) {
-  if (m.over) return (m.winner === 1 ? n1 : n2) + " wins!";
-  if (m.tb) return `TB ${m.tb1}–${m.tb2}`;
-  if (m.deuce) return "Deuce";
-  if (m.adv) return `AD ${m.advP === 1 ? n1 : n2}`;
-  return `${PTS[m.p1]}–${PTS[m.p2]}`;
-}
-
-function checkSwitch(m) {
-  if (m.over) return false;
-  if (m.tb) {
-    const x = m.tb1 + m.tb2;
-    return x > 0 && x % 6 === 0;
-  }
-  const g = m.g1 + m.g2;
-  return g > 0 && g % 2 !== 0 && m.p1 === 0 && m.p2 === 0;
-}
-
-/* ═══════════════════════════════════════════
-   COIN TOSS COMPONENT
-   ═══════════════════════════════════════════ */
-function CoinToss({ p1, p2, onResult }) {
-  const [phase, setPhase] = useState("idle");
-  const [result, setResult] = useState(null);
-  
-  const toss = () => {
-    vibrate(40);
-    setPhase("spinning");
-    const w = Math.random() < 0.5 ? 1 : 2;
-    setTimeout(() => {
-      setResult(w);
-      setPhase("done");
-      vibrate([20, 60, 20]);
-    }, 1500);
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, padding: "0 20px", width: "100%", height: "100%" }}>
-      <p style={{ fontSize: 11, color: "#666", fontFamily: "'DM Mono', monospace", letterSpacing: 3 }}>WHO SERVES FIRST?</p>
-      
-      <div style={{ width: 120, height: 120, borderRadius: "50%", background: phase === "spinning" ? "conic-gradient(#C8FF00,#07090A,#C8FF00,#07090A,#C8FF00)" : result ? "linear-gradient(135deg,#C8FF00,#8BA600)" : "#1a1f1a", border: `3px solid ${result ? L : "#333"}`, display: "flex", alignItems: "center", justifyContent: "center", animation: phase === "spinning" ? "spin 0.3s linear infinite" : "none", cursor: phase === "idle" ? "pointer" : "default" }} onClick={phase === "idle" ? toss : undefined}>
-        {phase !== "done" ? <span style={{ fontSize: 36 }}>🎾</span> :
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: BG }}>WON</div>
-            <div style={{ fontSize: 14, fontWeight: 900, color: BG }}>{result === 1 ? p1 : p2}</div>
-          </div>
+      <div onClick={phase==="idle"?toss:undefined} style={{
+        width:110,height:110,borderRadius:"50%",
+        background:phase==="spin"?"conic-gradient(#C8FF00,#07090A,#C8FF00,#07090A,#C8FF00)":result?"linear-gradient(135deg,#C8FF00,#8BA600)":"var(--card)",
+        border:`2.5px solid ${result?L:"var(--border)"}`,
+        display:"flex",alignItems:"center",justifyContent:"center",
+        animation:phase==="spin"?"spin .3s linear infinite":"none",
+        cursor:phase==="idle"?"pointer":"default",
+        boxShadow:result?`0 0 40px rgba(200,255,0,.25)`:"0 8px 32px rgba(0,0,0,.4)",
+        transition:phase==="spin"?"none":"all .5s",
+      }}>
+        {phase!=="done"?<span style={{fontSize:32}}>🎾</span>:
+          <div style={{textAlign:"center"}}><div style={{fontSize:9,fontWeight:700,color:BG,fontFamily:"var(--mono)",letterSpacing:2}}>WON</div><div style={{fontSize:14,fontWeight:900,color:BG,marginTop:2}}>{result===1?p1:p2}</div></div>
         }
       </div>
 
-      {phase === "idle" && <p style={{ color: "#888", fontSize: 14 }}>Tap to toss</p>}
-      
-      {phase === "done" && (
-        <div style={{ textAlign: "center", animation: "fadeUp 0.3s ease" }}>
-          <p style={{ color: L, fontWeight: 700, marginBottom: 15 }}>{result === 1 ? p1 : p2} serves!</p>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => onResult(result)} style={{ padding: "14px 28px", background: L, borderRadius: 10, color: BG, fontWeight: 800, fontSize: 14 }}>Start Match ✓</button>
-            <button onClick={() => onResult(result === 1 ? 2 : 1)} style={{ padding: "14px 28px", background: "#222", borderRadius: 10, color: "#aaa", fontWeight: 700, fontSize: 14 }}>Switch Server</button>
+      {phase==="idle"&&<p style={{color:"var(--text3)",fontSize:14,fontWeight:500}}>Tap the ball to toss</p>}
+
+      {phase==="done"&&(
+        <div style={{textAlign:"center",animation:"fadeIn .3s ease",width:"100%",maxWidth:300}}>
+          <p style={{color:"var(--text2)",fontSize:14,marginBottom:20}}><strong style={{color:L}}>{result===1?p1:p2}</strong> won the toss</p>
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={()=>onResult(result)} style={{flex:1,padding:"15px 0",background:L,borderRadius:12,color:BG,fontWeight:800,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              <Icon d={Icons.check} size={16} color={BG}/> Start
+            </button>
+            <button onClick={()=>onResult(result===1?2:1)} style={{flex:1,padding:"15px 0",background:"var(--card)",borderRadius:12,color:"var(--text2)",fontWeight:700,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              <Icon d={Icons.swap} size={14} color="var(--text3)"/> Swap
+            </button>
           </div>
         </div>
       )}
 
-      {phase === "idle" && (
-        <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 280, marginTop: 10 }}>
-          <button onClick={() => onResult(1)} style={{ flex: 1, padding: "12px 0", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#888", fontSize: 12, fontWeight: 600 }}>{p1}</button>
-          <button onClick={() => onResult(2)} style={{ flex: 1, padding: "12px 0", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#888", fontSize: 12, fontWeight: 600 }}>{p2}</button>
+      {phase==="idle"&&(
+        <div style={{width:"100%",maxWidth:300}}>
+          <p style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",textAlign:"center",marginBottom:8,letterSpacing:2}}>OR PICK MANUALLY</p>
+          <div style={{display:"flex",gap:8}}>
+            {[1,2].map(pl=>(
+              <button key={pl} onClick={()=>onResult(pl)} style={{flex:1,padding:"13px 0",background:"var(--card)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text2)",fontSize:13,fontWeight:600}}>
+                {pl===1?p1:p2}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════
-   WATCH CONNECT SCREEN
-   ═══════════════════════════════════════════ */
-function WatchConnect({ p1, p2, server, onReady }) {
-  const [status, setStatus] = useState("idle"); // idle | connecting | connected | failed
+/* ═══════════════ WATCH CONNECT ═══════════════ */
+function WatchConnect({p1,p2,onReady}){
+  const[st,setSt]=useState("idle"); // idle|busy|ok|fail
 
-  const connect = () => {
-    setStatus("connecting");
-    const ok = WatchRemote.activate(p1, p2);
-    setTimeout(() => {
-      if (ok && WatchRemote.active) {
-        setStatus("connected");
-        vibrate([20, 40, 20]);
-      } else {
-        setStatus("failed");
-      }
-    }, 1000);
+  const connect=()=>{
+    setSt("busy");
+    const ok=WatchRemote.activate(p1,p2);
+    setTimeout(()=>setSt(ok&&WatchRemote.active?"ok":"fail"),1200);
   };
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", padding: 24, animation: "fadeUp 0.4s ease" }}>
-      
-      <div style={{ width: 80, height: 80, borderRadius: 20, background: status === "connected" ? "rgba(200,255,0,0.1)" : "rgba(255,255,255,0.03)", border: `2px solid ${status === "connected" ? L : "#333"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, marginBottom: 20, transition: "all 0.5s", animation: status === "connected" ? "pulse 2s infinite" : "none" }}>
-        ⌚
+  return(
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",padding:24,animation:"fadeIn .4s ease"}}>
+
+      {/* Watch visual */}
+      <div style={{
+        width:72,height:88,borderRadius:18,
+        background:st==="ok"?"rgba(200,255,0,0.06)":"var(--card)",
+        border:`2px solid ${st==="ok"?L:"var(--border)"}`,
+        display:"flex",alignItems:"center",justifyContent:"center",
+        marginBottom:20,transition:"all .5s",position:"relative",
+        animation:st==="ok"?"glow 2s infinite":"none",
+      }}>
+        {/* Watch band top */}
+        <div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",width:28,height:10,borderRadius:"4px 4px 0 0",background:st==="ok"?"rgba(200,255,0,0.15)":"var(--card2)",border:`1px solid ${st==="ok"?"rgba(200,255,0,0.2)":"var(--border)"}`,borderBottom:"none"}}/>
+        {/* Watch band bottom */}
+        <div style={{position:"absolute",bottom:-10,left:"50%",transform:"translateX(-50%)",width:28,height:10,borderRadius:"0 0 4px 4px",background:st==="ok"?"rgba(200,255,0,0.15)":"var(--card2)",border:`1px solid ${st==="ok"?"rgba(200,255,0,0.2)":"var(--border)"}`,borderTop:"none"}}/>
+        {/* Crown */}
+        <div style={{position:"absolute",right:-6,top:"50%",transform:"translateY(-50%)",width:5,height:14,borderRadius:3,background:st==="ok"?L:"#333"}}/>
+
+        {st==="busy"?
+          <div style={{width:24,height:24,border:"2.5px solid var(--border)",borderTopColor:L,borderRadius:"50%",animation:"spin .7s linear infinite"}}/>:
+          st==="ok"?
+          <Icon d={Icons.check} size={28} color={L}/>:
+          <span style={{fontSize:24}}>⌚</span>
+        }
       </div>
 
-      <h2 style={{ fontSize: 20, fontWeight: 800, color: "#fff", marginBottom: 6, fontFamily: "'Outfit', sans-serif" }}>
-        {status === "connected" ? "Watch Connected!" : "Connect Apple Watch"}
+      <h2 style={{fontSize:20,fontWeight:800,color:"var(--text)",marginBottom:6}}>
+        {st==="ok"?"Watch Connected":"Connect Apple Watch"}
       </h2>
+      <p style={{color:"var(--text3)",fontSize:13,textAlign:"center",marginBottom:24,maxWidth:280,lineHeight:1.7}}>
+        {st==="idle"&&"Start an audio session so your Watch shows playback controls"}
+        {st==="busy"&&"Activating audio session..."}
+        {st==="ok"&&"Open Now Playing on your Watch to control the score"}
+        {st==="fail"&&"Could not start audio. Try again or play without Watch."}
+      </p>
 
-      {status === "idle" && (
-        <>
-          <p style={{ color: "#666", fontSize: 13, textAlign: "center", lineHeight: 1.8, marginBottom: 24, maxWidth: 300 }}>
-            The phone will create an audio session.<br/>
-            A <strong style={{ color: "#aaa" }}>Now Playing</strong> remote will appear on your watch.
-          </p>
-
-          <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 14, padding: 18, marginBottom: 24, width: "100%", maxWidth: 300 }}>
-            <p style={{ fontSize: 10, color: "#555", fontFamily: "'DM Mono', monospace", letterSpacing: 2, marginBottom: 12 }}>WATCH CONTROLS</p>
-            <div style={{ fontSize: 13, color: "#888", lineHeight: 2.2 }}>
-              <div>⏮ <strong style={{ color: L }}>Prev</strong> — Point {p1}</div>
-              <div>⏭ <strong style={{ color: L }}>Next</strong> — Point {p2}</div>
-              <div>⏸ <strong style={{ color: L }}>Pause</strong> — Undo last point</div>
-            </div>
+      {st==="ok"&&(
+        <div style={{background:"var(--card)",borderRadius:14,padding:16,marginBottom:24,width:"100%",maxWidth:300,animation:"fadeIn .3s ease"}}>
+          <p style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:12}}>WATCH CONTROLS</p>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {[
+              {icon:Icons.skip_prev,label:"Previous",desc:`Point ${p1}`,color:L},
+              {icon:Icons.skip_next,label:"Next",desc:`Point ${p2}`,color:L},
+              {icon:Icons.pause,label:"Pause",desc:"Undo last point",color:"#FF9F0A"},
+            ].map((r,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{width:34,height:34,borderRadius:8,background:"rgba(255,255,255,0.04)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <Icon d={r.icon} size={16} color={r.color}/>
+                </div>
+                <div>
+                  <span style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{r.label}</span>
+                  <span style={{fontSize:12,color:"var(--text3)",marginLeft:8}}>{r.desc}</span>
+                </div>
+              </div>
+            ))}
           </div>
+        </div>
+      )}
 
-          <button onClick={connect} style={{ width: "100%", maxWidth: 300, padding: 18, borderRadius: 14, background: L, color: BG, fontWeight: 800, fontSize: 16 }}>
-            Activate ⌚
+      {st==="idle"&&(
+        <>
+          <button onClick={connect} style={{width:"100%",maxWidth:300,padding:16,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            Activate Watch
           </button>
-          <button onClick={() => onReady(false)} style={{ marginTop: 12, padding: "12px 24px", background: "transparent", color: "#555", fontSize: 13, fontWeight: 600 }}>
-            Skip →
+          <button onClick={()=>onReady(false)} style={{marginTop:14,padding:"12px 24px",background:"transparent",color:"var(--text3)",fontSize:13,fontWeight:500}}>
+            Skip — play without Watch
           </button>
         </>
       )}
 
-      {status === "connecting" && (
-        <div style={{ marginTop: 20 }}>
-          <div style={{ width: 40, height: 40, border: "3px solid #333", borderTopColor: L, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }} />
-          <p style={{ color: "#888", fontSize: 13 }}>Activating audio session...</p>
-        </div>
+      {st==="ok"&&(
+        <button onClick={()=>onReady(true)} style={{width:"100%",maxWidth:300,padding:16,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:15,animation:"glow 2s infinite"}}>
+          Start Match 🎾
+        </button>
       )}
 
-      {status === "connected" && (
-        <div style={{ animation: "fadeUp 0.3s ease", textAlign: "center" }}>
-          <p style={{ color: "#888", fontSize: 13, marginBottom: 6 }}>Session Active</p>
-
-          <div style={{ background: "rgba(200,255,0,0.06)", border: "1px solid rgba(200,255,0,0.15)", borderRadius: 12, padding: 16, marginBottom: 24, maxWidth: 300 }}>
-            <p style={{ fontSize: 12, color: "#aaa", lineHeight: 1.8 }}>
-              Open <strong style={{ color: "#fff" }}>Now Playing</strong> on your watch.<br/>
-              If not visible, swipe up on your watch face<br/>
-              or open the active apps stack.
-            </p>
-          </div>
-
-          <button onClick={() => onReady(true)} style={{ width: "100%", maxWidth: 300, padding: 18, borderRadius: 14, background: L, color: BG, fontWeight: 800, fontSize: 16 }}>
-            Start Match 🎾
-          </button>
-        </div>
-      )}
-
-      {status === "failed" && (
-        <div style={{ animation: "fadeUp 0.3s ease", textAlign: "center" }}>
-          <p style={{ color: "#ff6b6b", fontSize: 13, marginBottom: 20 }}>
-            Failed to start audio.<br/>
-            Try again or play via touchscreen.
-          </p>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-            <button onClick={connect} style={{ padding: "14px 24px", background: "#222", borderRadius: 10, color: "#aaa", fontWeight: 700, fontSize: 14 }}>Retry</button>
-            <button onClick={() => onReady(false)} style={{ padding: "14px 24px", background: L, borderRadius: 10, color: BG, fontWeight: 800, fontSize: 14 }}>Skip</button>
-          </div>
+      {st==="fail"&&(
+        <div style={{display:"flex",gap:10,width:"100%",maxWidth:300}}>
+          <button onClick={connect} style={{flex:1,padding:"14px 0",background:"var(--card)",borderRadius:12,color:"var(--text2)",fontWeight:700,fontSize:14}}>Retry</button>
+          <button onClick={()=>onReady(false)} style={{flex:1,padding:"14px 0",background:L,borderRadius:12,color:BG,fontWeight:800,fontSize:14}}>Without Watch</button>
         </div>
       )}
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════
-   MAIN APP COMPONENT
-   ═══════════════════════════════════════════ */
-function App() {
-  const [screen, setScreen] = useState("setup"); 
-  const [p1, setP1] = useState("Player 1");
-  const [p2, setP2] = useState("Player 2");
-  const [match, setMatch] = useState(null);
-  const [hist, setHist] = useState([]);
-  const [elapsed, setElapsed] = useState(0);
-  const [flash, setFlash] = useState(null);
-  const [watchOn, setWatchOn] = useState(false);
-  const [remoteMsg, setRemoteMsg] = useState(null);
-  const [serverChoice, setServerChoice] = useState(1);
-  
-  const timerRef = useRef(null); 
-  const startRef = useRef(null); 
-  const wlRef = useRef(null);
-  const mRef = useRef(null); 
-  const hRef = useRef([]); 
-  const p1R = useRef(p1); 
-  const p2R = useRef(p2);
-  
-  mRef.current = match; 
-  hRef.current = hist; 
-  p1R.current = p1; 
-  p2R.current = p2;
+/* ═══════════════ MAIN APP ═══════════════ */
+function App(){
+  const[scr,setScr]=useState("setup");
+  const[p1,setP1]=useState("Player 1");
+  const[p2,setP2]=useState("Player 2");
+  const[m,setM]=useState(null);
+  const[hist,setHist]=useState([]);
+  const[el,setEl]=useState(0);
+  const[fl,setFl]=useState(null);
+  const[watchOn,setWatchOn]=useState(false);
+  const[rMsg,setRMsg]=useState(null);
+  const[sv,setSv]=useState(1);
+  const ti=useRef(null);const st=useRef(null);const wl=useRef(null);
+  const mR=useRef(null);const hR=useRef([]);const p1R=useRef(p1);const p2R=useRef(p2);
+  mR.current=m;hR.current=hist;p1R.current=p1;p2R.current=p2;
 
-  const rMsg = (t) => {
-    setRemoteMsg(t);
-    setTimeout(() => setRemoteMsg(null), 2500);
-  };
+  const flash=(t)=>{setRMsg(t);setTimeout(()=>setRMsg(null),2500)};
 
-  const score = useCallback((p, src) => {
-    const m = mRef.current;
-    if (!m || m.over) return;
-    vibrate(30);
-    
-    setHist(h => [...h, clone(m)]);
-    const next = doPoint(m, p);
-    setMatch(next);
-    setFlash(p);
-    
-    setTimeout(() => setFlash(null), 300);
-    WatchRemote.updateScore(getScoreText(next, p1R.current, p2R.current), p1R.current, p2R.current);
-    
-    if (src) rMsg(src);
-    
-    if (next.over) {
-      setTimeout(() => {
-        clearInterval(timerRef.current);
-        wlRef.current?.release();
-        WatchRemote.stop();
-        setWatchOn(false);
-        setScreen("final");
-      }, 1500);
-    }
-  }, []);
+  const score=useCallback((p,src)=>{
+    const c=mR.current;if(!c||c.over)return;vib(30);
+    setHist(h=>[...h,clone(c)]);const n=pt(c,p);setM(n);
+    setFl(p);setTimeout(()=>setFl(null),350);
+    WatchRemote.update(gst(n,p1R.current,p2R.current),p1R.current,p2R.current);
+    if(src)flash(src);
+    if(n.over)setTimeout(()=>{clearInterval(ti.current);wl.current?.release();WatchRemote.stop();setWatchOn(false);setScr("final")},1800);
+  },[]);
 
-  const undo = useCallback((src) => {
-    const h = hRef.current;
-    if (h.length === 0) return;
-    vibrate(20);
-    
-    setMatch(h[h.length - 1]);
-    setHist(x => x.slice(0, -1));
-    if (src) rMsg(src);
-  }, []);
+  const undo=useCallback((src)=>{
+    const h=hR.current;if(!h.length)return;vib(20);
+    setM(h[h.length-1]);setHist(x=>x.slice(0,-1));
+    if(src)flash(src);
+  },[]);
 
-  const onTossResult = (sv) => {
-    setServerChoice(sv);
-    setScreen("watch");
-  };
+  const onToss=(s)=>{setSv(s);setScr("watch")};
 
-  const onWatchReady = (connected) => {
+  const onWatch=(connected)=>{
     setWatchOn(connected);
-    if (connected) {
-      WatchRemote.onPrev = () => score(1, "⌚ ⏮ " + p1R.current);
-      WatchRemote.onNext = () => score(2, "⌚ ⏭ " + p2R.current);
-      WatchRemote.onPause = () => undo("⌚ ⏸ Undo");
+    if(connected){
+      WatchRemote.onPrev=()=>score(1,"⏮ "+p1R.current);
+      WatchRemote.onNext=()=>score(2,"⏭ "+p2R.current);
+      WatchRemote.onPause=()=>undo("⏸ Undo");
     }
-    
-    setMatch(freshMatch(serverChoice));
-    setHist([]);
-    setElapsed(0);
-    setScreen("match");
-    
-    startRef.current = Date.now();
-    timerRef.current = setInterval(() => setElapsed(Date.now() - startRef.current), 1000);
-    
-    (async () => {
-      try { 
-        if ("wakeLock" in navigator) wlRef.current = await navigator.wakeLock.request("screen"); 
-      } catch {}
-    })();
+    setM(fresh(sv));setHist([]);setEl(0);setScr("match");
+    st.current=Date.now();ti.current=setInterval(()=>setEl(Date.now()-st.current),1000);
+    (async()=>{try{if("wakeLock"in navigator)wl.current=await navigator.wakeLock.request("screen")}catch{}})();
   };
 
-  const endMatch = () => {
-    clearInterval(timerRef.current);
-    WatchRemote.stop();
-    setWatchOn(false);
-    wlRef.current?.release();
-    setScreen("final");
-  };
+  const end=()=>{clearInterval(ti.current);WatchRemote.stop();setWatchOn(false);wl.current?.release();setScr("final")};
+  const reset=()=>{clearInterval(ti.current);WatchRemote.stop();setWatchOn(false);wl.current?.release();setScr("setup")};
 
-  const reset = () => {
-    clearInterval(timerRef.current);
-    WatchRemote.stop();
-    setWatchOn(false);
-    wlRef.current?.release();
-    setScreen("setup");
-  };
+  useEffect(()=>()=>{clearInterval(ti.current);WatchRemote.stop();wl.current?.release()},[]);
 
-  useEffect(() => () => {
-    clearInterval(timerRef.current);
-    WatchRemote.stop();
-    wlRef.current?.release();
-  }, []);
+  const sw=m?chkSw(m):false;
 
-  const sw = match ? checkSwitch(match) : false;
+  return(
+    <div style={{fontFamily:"var(--font)",height:"100%",background:"var(--bg)",color:"var(--text)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
 
-  return (
-    <div style={{ fontFamily: "'Outfit', sans-serif", height: "100vh", height: "100dvh", background: BG, color: "white", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* ═══════ SETUP ═══════ */}
+      {scr==="setup"&&(
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:28,animation:"fadeIn .5s ease"}}>
+          {/* Logo mark */}
+          <div style={{width:64,height:64,borderRadius:18,background:"linear-gradient(135deg,rgba(200,255,0,0.12),rgba(200,255,0,0.04))",border:"1px solid rgba(200,255,0,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:30,marginBottom:16}}>🎾</div>
+          <h1 style={{fontSize:28,fontWeight:900,color:"var(--text)",letterSpacing:-.5,marginBottom:3}}>Avride Tennis</h1>
+          <p style={{color:"var(--text3)",fontSize:11,fontFamily:"var(--mono)",letterSpacing:3,marginBottom:36}}>SMART SCOREBOARD</p>
 
-      {/* ════════ SETUP ════════ */}
-      {screen === "setup" && (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 30, animation: "fadeUp 0.4s ease" }}>
-          <div style={{ fontSize: 40, marginBottom: 20 }}>🎾</div>
-          <h1 style={{ marginBottom: 8, fontWeight: 900, fontSize: 28 }}>Avride Tennis</h1>
-          <p style={{ color: "#555", fontSize: 11, fontFamily: "'DM Mono', monospace", letterSpacing: 3, marginBottom: 36 }}>SMART SCOREBOARD</p>
-          
-          <div style={{ width: "100%", maxWidth: 340 }}>
-            <input value={p1} onChange={e => setP1(e.target.value)} placeholder="Player 1" style={{ width: "100%", padding: 15, marginBottom: 15, borderRadius: 10, background: "#1a1a1a", border: "1px solid #333", color: "white", fontSize: 16, fontFamily: "inherit", fontWeight: 600 }} />
-            <input value={p2} onChange={e => setP2(e.target.value)} placeholder="Player 2" style={{ width: "100%", padding: 15, marginBottom: 24, borderRadius: 10, background: "#1a1a1a", border: "1px solid #333", color: "white", fontSize: 16, fontFamily: "inherit", fontWeight: 600 }} />
-            <button onClick={() => setScreen("toss")} style={{ width: "100%", padding: 18, borderRadius: 12, background: L, color: "black", fontWeight: 800, fontSize: 16 }}>CONTINUE</button>
+          <div style={{width:"100%",maxWidth:340}}>
+            {[{l:"PLAYER 1",v:p1,s:setP1},{l:"PLAYER 2",v:p2,s:setP2}].map((f,i)=>(
+              <div key={i} style={{marginBottom:14}}>
+                <label style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,display:"block",marginBottom:5}}>{f.l}</label>
+                <input value={f.v} onChange={e=>f.s(e.target.value)}
+                  onFocus={e=>{e.target.style.borderColor=L;e.target.style.background="rgba(200,255,0,0.03)"}}
+                  onBlur={e=>{e.target.style.borderColor="var(--border)";e.target.style.background="var(--card)"}}
+                  style={{width:"100%",padding:"14px 16px",borderRadius:12,background:"var(--card)",border:"1.5px solid var(--border)",color:"var(--text)",fontSize:16,fontWeight:600,transition:"all .2s"}}
+                />
+              </div>
+            ))}
+            <button onClick={()=>setScr("toss")} style={{width:"100%",marginTop:8,padding:17,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:16,animation:"glow 3s infinite"}}>
+              Continue
+            </button>
           </div>
         </div>
       )}
 
-      {/* ════════ TOSS ════════ */}
-      {screen === "toss" && <CoinToss p1={p1} p2={p2} onResult={onTossResult} />}
+      {/* ═══════ TOSS ═══════ */}
+      {scr==="toss"&&<CoinToss p1={p1} p2={p2} onResult={onToss}/>}
 
-      {/* ════════ WATCH CONNECT ════════ */}
-      {screen === "watch" && <WatchConnect p1={p1} p2={p2} server={serverChoice} onReady={onWatchReady} />}
+      {/* ═══════ WATCH ═══════ */}
+      {scr==="watch"&&<WatchConnect p1={p1} p2={p2} onReady={onWatch}/>}
 
-      {/* ════════ MATCH ════════ */}
-      {screen === "match" && match && (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      {/* ═══════ MATCH ═══════ */}
+      {scr==="match"&&m&&(
+        <div style={{flex:1,display:"flex",flexDirection:"column"}}>
 
-          {/* Top Info Bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 15px", borderBottom: "1px solid #151515", fontSize: 10, fontFamily: "'DM Mono', monospace" }}>
-            {watchOn ? (
-              <span style={{ color: L, display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: L, display: "inline-block" }}/>
-                ⌚ Watch connected
-              </span>
-            ) : (
-              <span style={{ color: "#444" }}>📱 Touchscreen only</span>
-            )}
-            <span style={{ flex: 1 }} />
-            {remoteMsg && <span style={{ color: L, animation: "popIn 0.2s ease", fontWeight: 500 }}>{remoteMsg}</span>}
+          {/* Status bar */}
+          <div style={{display:"flex",alignItems:"center",padding:"8px 16px",gap:8,borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+            {watchOn?
+              <Badge color={L} bg="rgba(200,255,0,0.06)"><span style={{width:5,height:5,borderRadius:"50%",background:L,display:"inline-block",animation:"pulse 1.5s infinite"}}/>Watch</Badge>:
+              <Badge color="var(--text3)" bg="rgba(255,255,255,0.03)">Touch</Badge>
+            }
+            <span style={{flex:1}}/>
+            {rMsg&&<Badge color={L} bg="rgba(200,255,0,0.1)" style={{animation:"popIn .2s ease"}}>{rMsg}</Badge>}
           </div>
 
-          <div style={{ padding: "10px 15px", display: "flex", justifyContent: "space-between", color: "#666", fontSize: 13, fontFamily: "'DM Mono', monospace" }}>
-            <span>{fmtTime(elapsed)}</span>
-            <span>{match.tb ? "TIEBREAK" : `SET ${match.sets.length + 1}`}</span>
-            <span>PTS: {match.pointNum}</span>
+          {/* Timer bar */}
+          <div style={{padding:"8px 16px",display:"flex",justifyContent:"space-between",color:"var(--text3)",fontSize:12,fontFamily:"var(--mono)"}}>
+            <span>{fmt(el)}</span>
+            <span style={{color:m.tb?L:m.deuce?"#FF9F0A":"var(--text3)",fontWeight:m.tb||m.deuce?600:400}}>{m.tb?"TIEBREAK":m.deuce?"DEUCE":m.adv?"ADVANTAGE":`SET ${m.sets.length+1}`}</span>
+            <span>PT {m.pn}</span>
           </div>
 
-          {sw && <div style={{ background: L, color: "black", textAlign: "center", padding: 8, fontWeight: 900, letterSpacing: 1, animation: "blink 1s infinite", fontSize: 14 }}>🔁 CHANGE ENDS</div>}
+          {/* Change ends alert */}
+          {sw&&(
+            <div style={{margin:"0 16px 6px",padding:"10px 16px",borderRadius:10,background:"rgba(200,255,0,0.08)",border:"1px solid rgba(200,255,0,0.15)",display:"flex",alignItems:"center",gap:10,animation:"slideDown .3s ease"}}>
+              <Icon d={Icons.swap} size={18} color={L}/>
+              <span style={{fontSize:13,fontWeight:700,color:L}}>Change Ends</span>
+            </div>
+          )}
 
-          {/* Main Scoreboard */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: 10 }}>
-            {match.sets.length > 0 && (
-              <div style={{ display: "flex", justifyContent: "center", gap: 15, marginBottom: 10, fontSize: 14, fontFamily: "'DM Mono', monospace" }}>
-                {match.sets.map((s, i) => (
-                  <span key={i}>
-                    <span style={{ color: s.a > s.b ? L : "#888" }}>{s.a}</span>
-                    <span style={{ color: "#444" }}>-</span>
-                    <span style={{ color: s.b > s.a ? L : "#888" }}>{s.b}</span>
-                  </span>
-                ))}
-              </div>
-            )}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {[1, 2].map(pl => {
-                const srv = match.server === pl;
-                const pts = getPts(match, pl);
-                return (
-                  <div key={pl} style={{ background: flash === pl ? "rgba(200,255,0,0.08)" : "#121415", borderRadius: 20, padding: 20, textAlign: "center", position: "relative", border: srv ? `1px solid ${L}` : "1px solid #222", transition: "background 0.3s" }}>
-                    {srv && <div style={{ position: "absolute", top: 10, right: 10, width: 8, height: 8, background: L, borderRadius: "50%", boxShadow: `0 0 6px ${L}` }}/>}
-                    <div style={{ color: "#aaa", fontWeight: 700, fontSize: 14, marginBottom: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{pl === 1 ? p1 : p2}</div>
-                    <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 10 }}>{pl === 1 ? match.g1 : match.g2} <span style={{ fontSize: 10, color: "#444", fontWeight: 400 }}>GAMES</span></div>
-                    <div style={{ fontSize: 70, fontWeight: 900, color: pts === "AD" ? L : "white", lineHeight: 1 }}>{pts}</div>
-                    {srv && <div style={{ fontSize: 9, color: "#555", fontFamily: "'DM Mono', monospace", marginTop: 8, letterSpacing: 2 }}>SERVING</div>}
+          {/* Set history */}
+          {m.sets.length>0&&(
+            <div style={{display:"flex",justifyContent:"center",gap:12,padding:"4px 16px 8px"}}>
+              {m.sets.map((s,i)=>(
+                <div key={i} style={{background:"var(--card)",borderRadius:8,padding:"4px 12px",display:"flex",gap:6,alignItems:"center"}}>
+                  <span style={{fontSize:13,fontWeight:700,color:s.a>s.b?L:"var(--text3)",fontFamily:"var(--mono)"}}>{s.a}</span>
+                  <span style={{fontSize:10,color:"var(--border)"}}>–</span>
+                  <span style={{fontSize:13,fontWeight:700,color:s.b>s.a?L:"var(--text3)",fontFamily:"var(--mono)"}}>{s.b}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Scoreboard */}
+          <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",padding:"0 12px"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {[1,2].map(pl=>{
+                const srv=m.server===pl,pts=gp(m,pl),isAdv=m.adv&&m.advP===pl;
+                return(
+                  <div key={pl} style={{
+                    background:fl===pl?"rgba(200,255,0,0.05)":"var(--card)",
+                    borderRadius:22,padding:"20px 16px 18px",textAlign:"center",
+                    position:"relative",transition:"background .3s, border .3s",
+                    border:srv?`1.5px solid rgba(200,255,0,0.35)`:`1.5px solid ${isAdv?"rgba(200,255,0,0.15)":"var(--border)"}`,
+                  }}>
+                    {/* Serve dot */}
+                    {srv&&<div style={{position:"absolute",top:12,right:14,width:7,height:7,borderRadius:"50%",background:L,boxShadow:`0 0 8px ${L}`}}/>}
+
+                    {/* Name */}
+                    <div style={{color:"var(--text2)",fontWeight:700,fontSize:14,marginBottom:12,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{pl===1?p1:p2}</div>
+
+                    {/* Sets & Games */}
+                    <div style={{display:"flex",justifyContent:"center",gap:20,marginBottom:14}}>
+                      <div>
+                        <div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:3}}>SETS</div>
+                        <div style={{fontSize:20,fontWeight:800}}>{pl===1?m.s1:m.s2}</div>
+                      </div>
+                      <div style={{width:1,background:"var(--border)"}}/>
+                      <div>
+                        <div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:3}}>GAMES</div>
+                        <div style={{fontSize:20,fontWeight:800}}>{pl===1?m.g1:m.g2}</div>
+                      </div>
+                    </div>
+
+                    {/* Points — big number */}
+                    <div style={{fontSize:72,fontWeight:900,lineHeight:1,color:pts==="AD"?L:"var(--text)",transition:"color .2s"}}>{pts}</div>
+
+                    {srv&&<div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",marginTop:10,letterSpacing:2}}>SERVING</div>}
                   </div>
                 );
               })}
@@ -598,72 +441,111 @@ function App() {
           </div>
 
           {/* Controls */}
-          <div style={{ padding: "10px 15px 16px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-              <button onClick={() => score(1)} style={{ padding: 28, borderRadius: 16, background: "#1f2223", color: L, fontSize: 18, fontWeight: 800, border: `1px solid ${L}` }}>{p1}</button>
-              <button onClick={() => score(2)} style={{ padding: 28, borderRadius: 16, background: "#1f2223", color: L, fontSize: 18, fontWeight: 800, border: `1px solid ${L}` }}>{p2}</button>
+          <div style={{padding:"8px 12px 14px",paddingBottom:"max(14px, env(safe-area-inset-bottom))"}}>
+            {/* Score buttons */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+              {[1,2].map(pl=>(
+                <button key={pl} onClick={()=>score(pl)} style={{
+                  padding:"22px 0",borderRadius:16,
+                  background:"var(--card)",color:L,
+                  fontSize:16,fontWeight:800,
+                  border:`1.5px solid rgba(200,255,0,0.3)`,
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+                }}>
+                  {pl===1&&<svg width="10" height="12" viewBox="0 0 10 12" fill={L}><path d="M0 6l10-6v12z"/></svg>}
+                  {pl===1?p1:p2}
+                  {pl===2&&<svg width="10" height="12" viewBox="0 0 10 12" fill={L}><path d="M10 6L0 0v12z"/></svg>}
+                </button>
+              ))}
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => undo()} disabled={hist.length === 0} style={{ flex: 1, padding: 14, borderRadius: 10, background: "#111", color: hist.length > 0 ? "#777" : "#333", border: "1px solid #252525", fontWeight: 600, fontSize: 13 }}>↩ Undo</button>
-              <button onClick={endMatch} style={{ flex: 1, padding: 14, borderRadius: 10, background: "#111", color: "#555", border: "1px solid #252525", fontWeight: 600, fontSize: 13 }}>✕ End</button>
+
+            {/* Action buttons */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <button onClick={()=>undo()} disabled={!hist.length} style={{
+                padding:"13px 0",borderRadius:12,
+                background:"var(--card)",
+                border:"1px solid var(--border)",
+                color:hist.length?"var(--text2)":"var(--border)",
+                fontSize:13,fontWeight:600,
+                display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+                opacity:hist.length?1:.4,
+              }}>
+                <Icon d={Icons.undo} size={15} color={hist.length?"var(--text2)":"var(--border)"}/>
+                Undo
+              </button>
+              <button onClick={end} style={{
+                padding:"13px 0",borderRadius:12,
+                background:"var(--card)",
+                border:"1px solid var(--border)",
+                color:"var(--text3)",fontSize:13,fontWeight:600,
+                display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+              }}>
+                <Icon d={Icons.end} size={14} color="var(--text3)"/>
+                End Match
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ════════ FINAL ════════ */}
-      {screen === "final" && match && (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20, animation: "fadeUp 0.5s ease" }}>
-          <div style={{ fontSize: 60, marginBottom: 10 }}>🏆</div>
-          <h2 style={{ color: L, fontSize: 28, textTransform: "uppercase", marginBottom: 5 }}>{match.winner ? `${match.winner === 1 ? p1 : p2} Wins!` : "Finished"}</h2>
-          <p style={{ color: "#555", marginBottom: 30 }}>{fmtTime(elapsed)} · {match.pointNum} points</p>
-          
-          <div style={{ width: "100%", maxWidth: 350, background: "#121415", borderRadius: 16, padding: 20, marginBottom: 20 }}>
-            {/* Rock-solid layout grid using fractions */}
-            <div style={{ display: "grid", gridTemplateColumns: "3fr 1fr 1fr 1fr", gap: 10, marginBottom: 15, borderBottom: "1px solid #222", paddingBottom: 10, fontSize: 12, color: "#555", fontFamily: "'DM Mono', monospace" }}>
-              <div style={{ textAlign: "left" }}>PLAYER</div>
-              <div style={{ textAlign: "center" }}>S1</div>
-              <div style={{ textAlign: "center" }}>S2</div>
-              <div style={{ textAlign: "center" }}>S3</div>
-            </div>
-            
-            {[1, 2].map(pl => (
-              <div key={pl} style={{ display: "grid", gridTemplateColumns: "3fr 1fr 1fr 1fr", gap: 10, marginBottom: pl === 1 ? 15 : 0, alignItems: "center" }}>
-                <div style={{ fontWeight: 700, color: match.winner === pl ? L : "white", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "left" }}>{pl === 1 ? p1 : p2}</div>
-                {[0, 1, 2].map(i => {
-                  const set = match.sets[i];
-                  let val = "-", col = "#333";
-                  if (set) {
-                    val = pl === 1 ? set.a : set.b;
-                    col = (pl === 1 ? set.a > set.b : set.b > set.a) ? "white" : "#666";
-                  } else if (!match.over && match.sets.length === i) {
-                    val = pl === 1 ? match.g1 : match.g2;
-                    col = "#888";
-                  }
-                  return <div key={i} style={{ textAlign: "center", fontWeight: 700, fontSize: 18, color: col }}>{val}</div>;
-                })}
-              </div>
-            ))}
+      {/* ═══════ FINAL ═══════ */}
+      {scr==="final"&&m&&(
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,animation:"fadeIn .5s ease"}}>
+          <div style={{fontSize:56,marginBottom:12}}>🏆</div>
+          <h2 style={{color:L,fontSize:26,fontWeight:900,marginBottom:4}}>
+            {m.winner?`${m.winner===1?p1:p2} Wins!`:"Match Ended"}
+          </h2>
+          <p style={{color:"var(--text3)",fontSize:13,marginBottom:24,fontFamily:"var(--mono)"}}>{fmt(el)} duration</p>
+
+          {/* Score table */}
+          <div style={{width:"100%",maxWidth:340,background:"var(--card)",borderRadius:16,padding:20,marginBottom:16}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"var(--mono)",fontSize:13}}>
+              <thead>
+                <tr style={{color:"var(--text3)",fontSize:10,letterSpacing:2}}>
+                  <th style={{textAlign:"left",padding:"0 0 12px",fontWeight:500}}>PLAYER</th>
+                  {[1,2,3].map(i=><th key={i} style={{textAlign:"center",padding:"0 0 12px",fontWeight:500}}>SET {i}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {[1,2].map(pl=>(
+                  <tr key={pl}>
+                    <td style={{fontWeight:700,color:m.winner===pl?L:"var(--text)",padding:"6px 0",maxWidth:100,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pl===1?p1:p2}</td>
+                    {[0,1,2].map(i=>{
+                      const set=m.sets[i];let val="–",col="var(--border)";
+                      if(set){val=pl===1?set.a:set.b;col=(pl===1?set.a>set.b:set.b>set.a)?"var(--text)":"var(--text3)"}
+                      else if(!m.over&&m.sets.length===i){val=pl===1?m.g1:m.g2;col="var(--text3)"}
+                      return<td key={i} style={{textAlign:"center",fontWeight:700,fontSize:18,color:col,padding:"6px 0"}}>{val}</td>;
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
-          <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 350, marginBottom: 30 }}>
-            {[1, 2].map(pl => (
-              <div key={pl} style={{ flex: 1, background: "#1a1a1a", padding: 15, borderRadius: 12, textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#555", marginBottom: 5 }}>TOTAL POINTS</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: (pl === 1 ? match.total1 > match.total2 : match.total2 > match.total1) ? "white" : "#666" }}>{pl === 1 ? match.total1 : match.total2}</div>
-                <div style={{ fontSize: 10, color: "#444", marginTop: 2 }}>{pl === 1 ? p1 : p2}</div>
-              </div>
-            ))}
+          {/* Stats */}
+          <div style={{display:"flex",gap:8,width:"100%",maxWidth:340,marginBottom:28}}>
+            {[1,2].map(pl=>{
+              const t=pl===1?m.t1:m.t2;const o=pl===1?m.t2:m.t1;
+              return(
+                <div key={pl} style={{flex:1,background:"var(--card)",padding:14,borderRadius:12,textAlign:"center"}}>
+                  <div style={{fontSize:9,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:4}}>TOTAL PTS</div>
+                  <div style={{fontSize:22,fontWeight:800,color:t>o?"var(--text)":"var(--text3)"}}>{t}</div>
+                  <div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{pl===1?p1:p2}</div>
+                </div>
+              );
+            })}
           </div>
-          
-          <button onClick={reset} style={{ width: "100%", maxWidth: 350, padding: 18, borderRadius: 12, background: L, color: "black", fontWeight: 800, fontSize: 16 }}>NEW MATCH</button>
+
+          <button onClick={reset} style={{width:"100%",maxWidth:340,padding:17,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:16}}>
+            New Match
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>
