@@ -6,29 +6,29 @@
   <meta name="theme-color" content="#07090A">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Avride Tennis — Smart Scoreboard</title>
+  <title>Tennis Score — Smart Scoreboard</title>
 
   <!-- Favicon (inline SVG — no extra files needed) -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2307090A'/><text y='68' x='50' text-anchor='middle' font-size='60'>🎾</text></svg>">
 
   <!-- Apple Home Screen -->
-  <meta name="apple-mobile-web-app-title" content="Avride Tennis">
+  <meta name="apple-mobile-web-app-title" content="Tennis Score">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%2307090A'/><text y='120' x='90' text-anchor='middle' font-size='100'>🎾</text></svg>">
 
   <!-- Open Graph — for link previews (iMessage, Telegram, WhatsApp, etc.) -->
-  <meta property="og:title" content="Avride Tennis">
+  <meta property="og:title" content="Tennis Score">
   <meta property="og:description" content="Smart tennis scoreboard with Apple Watch control. Track score, sets, tiebreaks — right from your phone.">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 630'><rect width='1200' height='630' fill='%2307090A'/><text y='340' x='600' text-anchor='middle' font-size='120' fill='white' font-family='sans-serif' font-weight='900'>🎾 Avride Tennis</text><text y='420' x='600' text-anchor='middle' font-size='40' fill='%23C8FF00' font-family='sans-serif'>Smart Scoreboard</text></svg>">
+  <meta property="og:image" content="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 630'><rect width='1200' height='630' fill='%2307090A'/><text y='340' x='600' text-anchor='middle' font-size='120' fill='white' font-family='sans-serif' font-weight='900'>🎾 Tennis Score</text><text y='420' x='600' text-anchor='middle' font-size='40' fill='%23C8FF00' font-family='sans-serif'>Smart Scoreboard</text></svg>">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Avride Tennis">
+  <meta name="twitter:title" content="Tennis Score">
   <meta name="twitter:description" content="Smart tennis scoreboard with Apple Watch control">
 
   <!-- General -->
   <meta name="description" content="Smart tennis scoreboard with Apple Watch control. Track score, sets, tiebreaks.">
-  <meta name="application-name" content="Avride Tennis">
+  <meta name="application-name" content="Tennis Score">
 
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -97,7 +97,7 @@ const WatchRemote={
       this._osc=osc;
     }catch(e){return false}
     if('mediaSession'in navigator){
-      navigator.mediaSession.metadata=new MediaMetadata({title:'\uD83C\uDFBE Match Started',artist:`${n1} vs ${n2}`,album:'Avride Tennis'});
+      navigator.mediaSession.metadata=new MediaMetadata({title:'\uD83C\uDFBE Match Started',artist:`${n1} vs ${n2}`,album:'Tennis Score'});
       navigator.mediaSession.setActionHandler('previoustrack',()=>{if(this.onPrev)this.onPrev()});
       navigator.mediaSession.setActionHandler('nexttrack',()=>{if(this.onNext)this.onNext()});
       navigator.mediaSession.setActionHandler('pause',()=>{if(this.onPause)this.onPause();setTimeout(()=>{this.audio?.play().catch(()=>{});if('mediaSession'in navigator)navigator.mediaSession.playbackState='playing'},150)});
@@ -108,7 +108,7 @@ const WatchRemote={
   },
 
   update(text,n1,n2){
-    if('mediaSession'in navigator)navigator.mediaSession.metadata=new MediaMetadata({title:`\uD83C\uDFBE ${text}`,artist:`${n1} vs ${n2}`,album:'Avride Tennis'});
+    if('mediaSession'in navigator)navigator.mediaSession.metadata=new MediaMetadata({title:`\uD83C\uDFBE ${text}`,artist:`${n1} vs ${n2}`,album:'Tennis Score'});
   },
 
   stop(){
@@ -353,7 +353,7 @@ function App(){
         <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:28,animation:"fadeIn .5s ease"}}>
           {/* Logo mark */}
           <div style={{width:64,height:64,borderRadius:18,background:"linear-gradient(135deg,rgba(200,255,0,0.12),rgba(200,255,0,0.04))",border:"1px solid rgba(200,255,0,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:30,marginBottom:16}}>🎾</div>
-          <h1 style={{fontSize:28,fontWeight:900,color:"var(--text)",letterSpacing:-.5,marginBottom:3}}>Avride Tennis</h1>
+          <h1 style={{fontSize:28,fontWeight:900,color:"var(--text)",letterSpacing:-.5,marginBottom:3}}>Tennis Score</h1>
           <p style={{color:"var(--text3)",fontSize:11,fontFamily:"var(--mono)",letterSpacing:3,marginBottom:36}}>SMART SCOREBOARD</p>
 
           <div style={{width:"100%",maxWidth:340}}>
