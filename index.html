@@ -78,6 +78,8 @@ const Icons={
   skip_prev:"M6 6h2v12H6z M20 6l-10 6 10 6z",
   skip_next:"M16 6h2v12h-2z M4 6l10 6-10 6z",
   pause:"M6 4h4v16H6z M14 4h4v16h-4z",
+  sound_on:"M11 5L6 9H2v6h4l5 4V5z M15.54 8.46a5 5 0 0 1 0 7.07 M19.07 4.93a10 10 0 0 1 0 14.14",
+  sound_off:"M11 5L6 9H2v6h4l5 4V5z M23 9l-6 6 M17 9l6 6",
 };
 
 /* ═══════════════ MEDIA SESSION ═══════════════ */
@@ -131,6 +133,129 @@ function pt(prev,p){const s=clone(prev);if(s.over)return s;s.pn++;if(p===1)s.t1+
 function gp(m,p){if(m.tb)return p===1?String(m.tb1):String(m.tb2);if(m.deuce)return"40";if(m.adv)return m.advP===p?"AD":"40";const v=p===1?m.p1:m.p2;return PTS[v]||String(v)}
 function gst(m,n1,n2){if(m.over)return(m.winner===1?n1:n2)+" wins!";if(m.tb)return`TB ${m.tb1}\u2013${m.tb2}`;if(m.deuce)return"Deuce";if(m.adv)return`AD ${m.advP===1?n1:n2}`;return`${PTS[m.p1]}\u2013${PTS[m.p2]}`}
 function chkSw(m){if(m.over)return false;if(m.tb){const x=m.tb1+m.tb2;return x>0&&x%6===0}const g=m.g1+m.g2;return g>0&&g%2!==0&&m.p1===0&&m.p2===0}
+
+/* ═══════════════ UMPIRE VOICE ═══════════════ */
+const Umpire = {
+  enabled: true,
+  _queue: [],
+  _speaking: false,
+
+  say(text, delay=0) {
+    if (!this.enabled) return;
+    if (!('speechSynthesis' in window)) return;
+    setTimeout(() => {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-US';
+      u.rate = 0.88;
+      u.pitch = 0.9;
+      // Try to pick a good English voice
+      const voices = speechSynthesis.getVoices();
+      const pref = voices.find(v => v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Karen'))
+                || voices.find(v => v.lang.startsWith('en') && !v.name.includes('Google'))
+                || voices.find(v => v.lang.startsWith('en'));
+      if (pref) u.voice = pref;
+      speechSynthesis.cancel(); // stop previous
+      speechSynthesis.speak(u);
+    }, delay);
+  },
+
+  // Compare old and new state, announce like a real umpire
+  announce(prev, next, n1, n2) {
+    if (!this.enabled) return;
+    const server = next.server;
+    const sName = server === 1 ? n1 : n2;
+
+    // Match over
+    if (next.over && !prev.over) {
+      const winner = next.winner === 1 ? n1 : n2;
+      const setScores = next.sets.map(s => `${s.a} ${s.b}`).join(', ');
+      this.say(`Game, set, and match, ${winner}. ${setScores}`);
+      return;
+    }
+
+    // Set won (new set added)
+    if (next.sets.length > prev.sets.length) {
+      const lastSet = next.sets[next.sets.length - 1];
+      const setWinner = lastSet.a > lastSet.b ? n1 : n2;
+      this.say(`Game and set, ${setWinner}. ${lastSet.a} games to ${lastSet.b}`);
+      // Then announce next server
+      this.say(`${sName} to serve`, 2500);
+      return;
+    }
+
+    // Game won (games changed, but not a set win)
+    const prevTotalGames = prev.g1 + prev.g2;
+    const nextTotalGames = next.g1 + next.g2;
+    if (nextTotalGames > prevTotalGames || (prevTotalGames > 0 && nextTotalGames === 0 && next.sets.length === prev.sets.length)) {
+      // Figure out who won the game
+      const gameWinner = (next.g1 > prev.g1 || (prev.g1 > 0 && next.g1 === 0)) ? 1 : 2;
+      const gwName = gameWinner === 1 ? n1 : n2;
+      
+      // Tiebreak starting?
+      if (next.tb && !prev.tb) {
+        this.say(`Game, ${gwName}. Six games all. Tiebreak.`);
+        this.say(`${sName} to serve`, 2200);
+        return;
+      }
+
+      this.say(`Game, ${gwName}. ${next.g1}, ${next.g2}`);
+      // Change ends?
+      if (chkSw(next)) {
+        this.say("Change ends", 1800);
+        this.say(`${sName} to serve`, 3000);
+      } else {
+        this.say(`${sName} to serve`, 2000);
+      }
+      return;
+    }
+
+    // Tiebreak points
+    if (next.tb) {
+      // Server change in tiebreak
+      if (prev.server !== next.server) {
+        // Change ends in tiebreak
+        if (chkSw(next)) {
+          this.say(`${next.tb1}, ${next.tb2}. Change ends`);
+        } else {
+          this.say(`${next.tb1}, ${next.tb2}`);
+        }
+      } else {
+        this.say(`${next.tb1}, ${next.tb2}`);
+      }
+      return;
+    }
+
+    // Deuce
+    if (next.deuce && !prev.deuce) {
+      this.say("Deuce");
+      return;
+    }
+
+    // Advantage
+    if (next.adv && !prev.adv) {
+      const advName = next.advP === 1 ? n1 : n2;
+      this.say(`Advantage, ${advName}`);
+      return;
+    }
+
+    // Back to deuce from advantage
+    if (next.deuce && prev.adv) {
+      this.say("Deuce");
+      return;
+    }
+
+    // Regular point — announce server's score first (tennis convention)
+    const s1 = PTS[next.p1] || String(next.p1);
+    const s2 = PTS[next.p2] || String(next.p2);
+    if (s1 === s2 && s1 !== "0") {
+      this.say(`${s1} all`);
+    } else if (next.server === 1) {
+      this.say(`${s1}, ${s2}`);
+    } else {
+      this.say(`${s2}, ${s1}`);
+    }
+  }
+};
 
 /* ═══════════════ PILL BADGE ═══════════════ */
 function Badge({children,color=L,bg="rgba(200,255,0,0.08)",style={}}){
@@ -303,6 +428,7 @@ function App(){
   const[watchOn,setWatchOn]=useState(false);
   const[rMsg,setRMsg]=useState(null);
   const[sv,setSv]=useState(1);
+  const[soundOn,setSoundOn]=useState(true);
   const ti=useRef(null);const st=useRef(null);const wl=useRef(null);
   const mR=useRef(null);const hR=useRef([]);const p1R=useRef(p1);const p2R=useRef(p2);
   mR.current=m;hR.current=hist;p1R.current=p1;p2R.current=p2;
@@ -314,6 +440,8 @@ function App(){
     setHist(h=>[...h,clone(c)]);const n=pt(c,p);setM(n);
     setFl(p);setTimeout(()=>setFl(null),350);
     WatchRemote.update(gst(n,p1R.current,p2R.current),p1R.current,p2R.current);
+    // Umpire voice
+    Umpire.announce(c, n, p1R.current, p2R.current);
     if(src)flash(src);
     if(n.over)setTimeout(()=>{clearInterval(ti.current);wl.current?.release();WatchRemote.stop();setWatchOn(false);setScr("final")},1800);
   },[]);
@@ -321,8 +449,14 @@ function App(){
   const undo=useCallback((src)=>{
     const h=hR.current;if(!h.length)return;vib(20);
     setM(h[h.length-1]);setHist(x=>x.slice(0,-1));
+    Umpire.say("Correction");
     if(src)flash(src);
   },[]);
+
+  // Sync Umpire with sound toggle
+  useEffect(()=>{ Umpire.enabled = soundOn; if(!soundOn) speechSynthesis?.cancel(); },[soundOn]);
+  // Load voices early
+  useEffect(()=>{ speechSynthesis?.getVoices(); },[]);
 
   const onToss=(s)=>{setSv(s);setScr("watch")};
 
@@ -336,12 +470,15 @@ function App(){
     setM(fresh(sv));setHist([]);setEl(0);setScr("match");
     st.current=Date.now();ti.current=setInterval(()=>setEl(Date.now()-st.current),1000);
     (async()=>{try{if("wakeLock"in navigator)wl.current=await navigator.wakeLock.request("screen")}catch{}})();
+    // Announce first server
+    const sName = sv===1 ? p1 : p2;
+    Umpire.say(`${p1} versus ${p2}. ${sName} to serve. Play.`, 600);
   };
 
-  const end=()=>{clearInterval(ti.current);WatchRemote.stop();setWatchOn(false);wl.current?.release();setScr("final")};
-  const reset=()=>{clearInterval(ti.current);WatchRemote.stop();setWatchOn(false);wl.current?.release();setScr("setup")};
+  const end=()=>{clearInterval(ti.current);WatchRemote.stop();setWatchOn(false);wl.current?.release();speechSynthesis?.cancel();setScr("final")};
+  const reset=()=>{clearInterval(ti.current);WatchRemote.stop();setWatchOn(false);wl.current?.release();speechSynthesis?.cancel();setScr("setup")};
 
-  useEffect(()=>()=>{clearInterval(ti.current);WatchRemote.stop();wl.current?.release()},[]);
+  useEffect(()=>()=>{clearInterval(ti.current);WatchRemote.stop();wl.current?.release();speechSynthesis?.cancel()},[]);
 
   const sw=m?chkSw(m):false;
 
@@ -390,6 +527,16 @@ function App(){
               <Badge color={L} bg="rgba(200,255,0,0.06)"><span style={{width:5,height:5,borderRadius:"50%",background:L,display:"inline-block",animation:"pulse 1.5s infinite"}}/>Watch</Badge>:
               <Badge color="var(--text3)" bg="rgba(255,255,255,0.03)">Touch</Badge>
             }
+            {/* Sound toggle */}
+            <button onClick={()=>setSoundOn(x=>!x)} style={{
+              display:"flex",alignItems:"center",gap:4,padding:"3px 10px",
+              borderRadius:20,fontSize:10,fontWeight:600,fontFamily:"var(--mono)",
+              background:soundOn?"rgba(200,255,0,0.06)":"rgba(255,255,255,0.03)",
+              color:soundOn?L:"var(--text3)",letterSpacing:1,
+            }}>
+              <Icon d={soundOn?Icons.sound_on:Icons.sound_off} size={12} color={soundOn?L:"var(--text3)"}/>
+              {soundOn?"ON":"OFF"}
+            </button>
             <span style={{flex:1}}/>
             {rMsg&&<Badge color={L} bg="rgba(200,255,0,0.1)" style={{animation:"popIn .2s ease"}}>{rMsg}</Badge>}
           </div>
