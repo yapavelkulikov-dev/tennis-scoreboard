@@ -11,23 +11,23 @@
   <!-- Favicon (inline SVG — no extra files needed) -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2307090A'/><text y='68' x='50' text-anchor='middle' font-size='60'>🎾</text></svg>">
 
-  <!-- Apple Home Screen -->
+  <!-- Home Screen -->
   <meta name="apple-mobile-web-app-title" content="Tennis Score">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%2307090A'/><text y='120' x='90' text-anchor='middle' font-size='100'>🎾</text></svg>">
 
   <!-- Open Graph — for link previews (iMessage, Telegram, WhatsApp, etc.) -->
   <meta property="og:title" content="Tennis Score">
-  <meta property="og:description" content="Smart tennis scoreboard with Apple Watch control. Track score, sets, tiebreaks — right from your phone.">
+  <meta property="og:description" content="Smart tennis scoreboard with smartwatch control. Track score, sets, tiebreaks — right from your phone.">
   <meta property="og:type" content="website">
   <meta property="og:image" content="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 630'><rect width='1200' height='630' fill='%2307090A'/><text y='340' x='600' text-anchor='middle' font-size='120' fill='white' font-family='sans-serif' font-weight='900'>🎾 Tennis Score</text><text y='420' x='600' text-anchor='middle' font-size='40' fill='%23C8FF00' font-family='sans-serif'>Smart Scoreboard</text></svg>">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Tennis Score">
-  <meta name="twitter:description" content="Smart tennis scoreboard with Apple Watch control">
+  <meta name="twitter:description" content="Smart tennis scoreboard with smartwatch control">
 
   <!-- General -->
-  <meta name="description" content="Smart tennis scoreboard with Apple Watch control. Track score, sets, tiebreaks.">
+  <meta name="description" content="Smart tennis scoreboard with smartwatch control. Track score, sets, tiebreaks.">
   <meta name="application-name" content="Tennis Score">
 
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -313,13 +313,13 @@ function WatchConnect({p1,p2,onReady}){
       </div>
 
       <h2 style={{fontSize:20,fontWeight:800,color:"var(--text)",marginBottom:6}}>
-        {st==="ok"?"Watch Connected":"Connect Apple Watch"}
+        {st==="ok"?"Watch Connected":"Connect Smartwatch"}
       </h2>
       <p style={{color:"var(--text3)",fontSize:13,textAlign:"center",marginBottom:24,maxWidth:280,lineHeight:1.7}}>
-        {st==="idle"&&"Start an audio session so your Watch shows playback controls"}
+        {st==="idle"&&"Start an audio session so your watch shows media controls"}
         {st==="busy"&&"Activating audio session..."}
-        {st==="ok"&&"Open Now Playing on your Watch to control the score"}
-        {st==="fail"&&"Could not start audio. Try again or play without Watch."}
+        {st==="ok"&&"Open media controls on your watch to score points"}
+        {st==="fail"&&"Could not start audio. Try again or play without watch."}
       </p>
 
       {st==="ok"&&(
@@ -348,10 +348,10 @@ function WatchConnect({p1,p2,onReady}){
       {st==="idle"&&(
         <>
           <button onClick={connect} style={{width:"100%",maxWidth:300,padding:16,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-            Activate Watch
+            Activate Smartwatch
           </button>
           <button onClick={()=>onReady(false)} style={{marginTop:14,padding:"12px 24px",background:"transparent",color:"var(--text3)",fontSize:13,fontWeight:500}}>
-            Skip — play without Watch
+            Skip — play without watch
           </button>
         </>
       )}
@@ -365,7 +365,7 @@ function WatchConnect({p1,p2,onReady}){
       {st==="fail"&&(
         <div style={{display:"flex",gap:10,width:"100%",maxWidth:300}}>
           <button onClick={connect} style={{flex:1,padding:"14px 0",background:"var(--card)",borderRadius:12,color:"var(--text2)",fontWeight:700,fontSize:14}}>Retry</button>
-          <button onClick={()=>onReady(false)} style={{flex:1,padding:"14px 0",background:L,borderRadius:12,color:BG,fontWeight:800,fontSize:14}}>Without Watch</button>
+          <button onClick={()=>onReady(false)} style={{flex:1,padding:"14px 0",background:L,borderRadius:12,color:BG,fontWeight:800,fontSize:14}}>Without watch</button>
         </div>
       )}
     </div>
