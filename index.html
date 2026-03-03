@@ -7,50 +7,39 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Tennis Score — Smart Scoreboard</title>
-
-  <!-- Favicon (inline SVG — no extra files needed) -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2307090A'/><text y='68' x='50' text-anchor='middle' font-size='60'>🎾</text></svg>">
-
   <!-- Home Screen -->
   <meta name="apple-mobile-web-app-title" content="Tennis Score">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%2307090A'/><text y='120' x='90' text-anchor='middle' font-size='100'>🎾</text></svg>">
-
-  <!-- Open Graph — for link previews (iMessage, Telegram, WhatsApp, etc.) -->
   <meta property="og:title" content="Tennis Score">
   <meta property="og:description" content="Smart tennis scoreboard with smartwatch control. Track score, sets, tiebreaks — right from your phone.">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 630'><rect width='1200' height='630' fill='%2307090A'/><text y='340' x='600' text-anchor='middle' font-size='120' fill='white' font-family='sans-serif' font-weight='900'>🎾 Tennis Score</text><text y='420' x='600' text-anchor='middle' font-size='40' fill='%23C8FF00' font-family='sans-serif'>Smart Scoreboard</text></svg>">
-
-  <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Tennis Score">
   <meta name="twitter:description" content="Smart tennis scoreboard with smartwatch control">
-
-  <!-- General -->
   <meta name="description" content="Smart tennis scoreboard with smartwatch control. Track score, sets, tiebreaks.">
   <meta name="application-name" content="Tennis Score">
-
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800;900&display=swap');
-    :root{--lime:#C8FF00;--bg:#07090A;--card:#111214;--card2:#161819;--border:#1e2022;--text:#ffffff;--text2:#a0a4a8;--text3:#5a5e62;--font:'Outfit',sans-serif;--mono:'DM Mono',monospace}
+    :root{--lime:#C8FF00;--bg:#07090A;--card:#111214;--card2:#161819;--border:#1e2022;--text:#fff;--text2:#a0a4a8;--text3:#5a5e62;--font:'Outfit',sans-serif;--mono:'DM Mono',monospace}
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
     html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);font-family:var(--font)}
     #root{height:100%;height:100dvh}
     button{border:none;font-family:var(--font);cursor:pointer;-webkit-appearance:none}
-    button:active{transform:scale(0.97);transition:transform 0.1s}
+    button:active{transform:scale(0.97);transition:transform .1s}
     input{font-family:var(--font);-webkit-appearance:none}
     input:focus{outline:none}
-    ::selection{background:rgba(200,255,0,0.3)}
+    ::selection{background:rgba(200,255,0,.3)}
     @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
     @keyframes spin{to{transform:rotate(360deg)}}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
     @keyframes glow{0%,100%{box-shadow:0 0 16px rgba(200,255,0,.15)}50%{box-shadow:0 0 32px rgba(200,255,0,.35)}}
     @keyframes slideDown{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
     @keyframes popIn{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
-    @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+    @keyframes fadeOverlay{from{opacity:0}to{opacity:1}}
   </style>
 </head>
 <body>
@@ -62,41 +51,34 @@ const L="#C8FF00",BG="#07090A";
 
 /* ═══════════════ SVG ICONS ═══════════════ */
 const Icon=({d,size=20,color="#fff",style={}})=>(
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
-    <path d={d}/>
-  </svg>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><path d={d}/></svg>
 );
-
 const Icons={
   undo:"M3 10h10a5 5 0 0 1 0 10H3 M3 10l4-4 M3 10l4 4",
   end:"M18 6L6 18 M6 6l12 12",
   swap:"M7 16V4m0 0L3 8m4-4l4 4 M17 8v12m0 0l4-4m-4 4l-4-4",
   check:"M20 6L9 17l-5-5",
-  play:"M5 3l14 9-14 9V3z",
-  watch:"M9 2h6 M12 22v-2 M12 2v2 M7 4h10v16H7V4z M10 9h4 M10 12h4",
-  court:"M4 4h16v16H4V4z M12 4v16 M4 12h16",
+  sound_on:"M11 5L6 9H2v6h4l5 4V5z M15.54 8.46a5 5 0 0 1 0 7.07 M19.07 4.93a10 10 0 0 1 0 14.14",
+  sound_off:"M11 5L6 9H2v6h4l5 4V5z M23 9l-6 6 M17 9l6 6",
+  help:"M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3 M12 17h.01",
+  close:"M18 6L6 18 M6 6l12 12",
   skip_prev:"M6 6h2v12H6z M20 6l-10 6 10 6z",
   skip_next:"M16 6h2v12h-2z M4 6l10 6-10 6z",
   pause:"M6 4h4v16H6z M14 4h4v16h-4z",
-  sound_on:"M11 5L6 9H2v6h4l5 4V5z M15.54 8.46a5 5 0 0 1 0 7.07 M19.07 4.93a10 10 0 0 1 0 14.14",
-  sound_off:"M11 5L6 9H2v6h4l5 4V5z M23 9l-6 6 M17 9l6 6",
 };
 
 /* ═══════════════ MEDIA SESSION ═══════════════ */
 const WatchRemote={
   ctx:null,audio:null,active:false,onPrev:null,onNext:null,onPause:null,
-
   activate(n1,n2){
     if(this.active)return true;
     try{
-      const AC=window.AudioContext||window.webkitAudioContext;
-      this.ctx=new AC();
+      const AC=window.AudioContext||window.webkitAudioContext;this.ctx=new AC();
       const osc=this.ctx.createOscillator();osc.frequency.value=1;
       const gain=this.ctx.createGain();gain.gain.value=0.001;
       const dest=this.ctx.createMediaStreamDestination();
       osc.connect(gain);gain.connect(dest);gain.connect(this.ctx.destination);osc.start();
-      this.audio=new Audio();this.audio.srcObject=dest.stream;this.audio.loop=true;this.audio.play();
-      this._osc=osc;
+      this.audio=new Audio();this.audio.srcObject=dest.stream;this.audio.loop=true;this.audio.play();this._osc=osc;
     }catch(e){return false}
     if('mediaSession'in navigator){
       navigator.mediaSession.metadata=new MediaMetadata({title:'\uD83C\uDFBE Match Started',artist:`${n1} vs ${n2}`,album:'Tennis Score'});
@@ -108,114 +90,224 @@ const WatchRemote={
     }
     this.active=true;return true;
   },
-
-  update(text,n1,n2){
-    if('mediaSession'in navigator)navigator.mediaSession.metadata=new MediaMetadata({title:`\uD83C\uDFBE ${text}`,artist:`${n1} vs ${n2}`,album:'Tennis Score'});
-  },
-
-  stop(){
-    try{this._osc?.stop();this.ctx?.close()}catch{}
-    this.audio?.pause();this.audio=null;this.ctx=null;
-    if('mediaSession'in navigator)['previoustrack','nexttrack','pause','play'].forEach(a=>navigator.mediaSession.setActionHandler(a,null));
-    this.active=false;
-  }
+  update(text,n1,n2){if('mediaSession'in navigator)navigator.mediaSession.metadata=new MediaMetadata({title:`\uD83C\uDFBE ${text}`,artist:`${n1} vs ${n2}`,album:'Tennis Score'})},
+  stop(){try{this._osc?.stop();this.ctx?.close()}catch{}this.audio?.pause();this.audio=null;this.ctx=null;if('mediaSession'in navigator)['previoustrack','nexttrack','pause','play'].forEach(a=>navigator.mediaSession.setActionHandler(a,null));this.active=false}
 };
 
-/* ═══════════════ TENNIS ENGINE ═══════════════ */
+/* ═══════════════ TENNIS ENGINE ═══════════════
+   cfg = { setLen:6, noAd:false, matchTB:false }
+*/
 const vib=(p=25)=>{try{navigator.vibrate?.(p)}catch{}};
 const fmt=ms=>{const s=Math.floor(ms/1000);return Math.floor(s/60)+":"+(s%60).toString().padStart(2,"0")};
 const clone=o=>JSON.parse(JSON.stringify(o));
 
-function fresh(sv){return{p1:0,p2:0,g1:0,g2:0,s1:0,s2:0,sets:[],t1:0,t2:0,tb:false,tb1:0,tb2:0,deuce:false,adv:false,advP:null,over:false,winner:null,server:sv,pn:0}}
-function wg(s,p){if(p===1)s.g1++;else s.g2++;s.p1=0;s.p2=0;s.deuce=false;s.adv=false;s.advP=null;s.tb1=0;s.tb2=0;s.tb=false;s.server=s.server===1?2:1;if(s.g1>=6&&s.g1-s.g2>=2)return wst(s,1);if(s.g2>=6&&s.g2-s.g1>=2)return wst(s,2);if(s.g1===6&&s.g2===6)s.tb=true;return s}
-function wst(s,p){s.sets.push({a:s.g1,b:s.g2});if(p===1)s.s1++;else s.s2++;s.g1=0;s.g2=0;if(s.s1>=2){s.over=true;s.winner=1}if(s.s2>=2){s.over=true;s.winner=2}return s}
-function pt(prev,p){const s=clone(prev);if(s.over)return s;s.pn++;if(p===1)s.t1++;else s.t2++;if(s.tb){if(p===1)s.tb1++;else s.tb2++;s.p1=s.tb1;s.p2=s.tb2;if((s.tb1+s.tb2)%2===1)s.server=s.server===1?2:1;if(s.tb1>=7&&s.tb1-s.tb2>=2)return wg(s,1);if(s.tb2>=7&&s.tb2-s.tb1>=2)return wg(s,2);return s}if(s.p1>=3&&s.p2>=3){if(s.adv){if(s.advP===p)return wg(s,p);s.adv=false;s.advP=null;s.deuce=true;return s}if(s.deuce||(s.p1===3&&s.p2===3)){s.deuce=false;s.adv=true;s.advP=p;return s}}if(p===1)s.p1++;else s.p2++;if(s.p1>=4)return wg(s,1);if(s.p2>=4)return wg(s,2);if(s.p1===3&&s.p2===3)s.deuce=true;return s}
-function gp(m,p){if(m.tb)return p===1?String(m.tb1):String(m.tb2);if(m.deuce)return"40";if(m.adv)return m.advP===p?"AD":"40";const v=p===1?m.p1:m.p2;return PTS[v]||String(v)}
-function gst(m,n1,n2){if(m.over)return(m.winner===1?n1:n2)+" wins!";if(m.tb)return`TB ${m.tb1}\u2013${m.tb2}`;if(m.deuce)return"Deuce";if(m.adv)return`AD ${m.advP===1?n1:n2}`;return`${PTS[m.p1]}\u2013${PTS[m.p2]}`}
-function chkSw(m){if(m.over)return false;if(m.tb){const x=m.tb1+m.tb2;return x>0&&x%6===0}const g=m.g1+m.g2;return g>0&&g%2!==0&&m.p1===0&&m.p2===0}
+function fresh(sv,cfg){
+  return{p1:0,p2:0,g1:0,g2:0,s1:0,s2:0,sets:[],t1:0,t2:0,
+    tb:false,tb1:0,tb2:0,mtb:false,mtb1:0,mtb2:0,
+    deuce:false,adv:false,advP:null,
+    over:false,winner:null,server:sv,pn:0,cfg};
+}
+
+function wg(s,p){
+  const SL=s.cfg.setLen;
+  if(p===1)s.g1++;else s.g2++;
+  s.p1=0;s.p2=0;s.deuce=false;s.adv=false;s.advP=null;s.tb1=0;s.tb2=0;s.tb=false;
+  s.server=s.server===1?2:1;
+  if(s.g1>=SL&&s.g1-s.g2>=2)return wst(s,1);
+  if(s.g2>=SL&&s.g2-s.g1>=2)return wst(s,2);
+  if(s.g1===SL&&s.g2===SL)s.tb=true;
+  return s;
+}
+
+function wst(s,p){
+  s.sets.push({a:s.g1,b:s.g2});
+  if(p===1)s.s1++;else s.s2++;
+  s.g1=0;s.g2=0;
+  // Check match win
+  if(s.s1>=2){s.over=true;s.winner=1;return s}
+  if(s.s2>=2){s.over=true;s.winner=2;return s}
+  // 1-1 and matchTB mode → go to match tiebreak
+  if(s.cfg.matchTB&&s.s1===1&&s.s2===1){s.mtb=true}
+  return s;
+}
+
+function pt(prev,p){
+  const s=clone(prev);if(s.over)return s;s.pn++;
+  if(p===1)s.t1++;else s.t2++;
+
+  // Match tiebreak (to 10)
+  if(s.mtb){
+    if(p===1)s.mtb1++;else s.mtb2++;
+    s.p1=s.mtb1;s.p2=s.mtb2;
+    // Serve change: after 1st point then every 2
+    if((s.mtb1+s.mtb2)%2===1)s.server=s.server===1?2:1;
+    if(s.mtb1>=10&&s.mtb1-s.mtb2>=2){s.sets.push({a:s.mtb1,b:s.mtb2,mtb:true});s.over=true;s.winner=1}
+    if(s.mtb2>=10&&s.mtb2-s.mtb1>=2){s.sets.push({a:s.mtb1,b:s.mtb2,mtb:true});s.over=true;s.winner=2}
+    return s;
+  }
+
+  // Set tiebreak (to 7)
+  if(s.tb){
+    if(p===1)s.tb1++;else s.tb2++;
+    s.p1=s.tb1;s.p2=s.tb2;
+    if((s.tb1+s.tb2)%2===1)s.server=s.server===1?2:1;
+    if(s.tb1>=7&&s.tb1-s.tb2>=2)return wg(s,1);
+    if(s.tb2>=7&&s.tb2-s.tb1>=2)return wg(s,2);
+    return s;
+  }
+
+  // No-Ad: at 40-40 deciding point
+  if(s.cfg.noAd&&s.p1>=3&&s.p2>=3){
+    return wg(s,p);
+  }
+
+  // Standard deuce/advantage
+  if(s.p1>=3&&s.p2>=3){
+    if(s.adv){if(s.advP===p)return wg(s,p);s.adv=false;s.advP=null;s.deuce=true;return s}
+    if(s.deuce||(s.p1===3&&s.p2===3)){s.deuce=false;s.adv=true;s.advP=p;return s}
+  }
+
+  if(p===1)s.p1++;else s.p2++;
+  if(s.p1>=4)return wg(s,1);if(s.p2>=4)return wg(s,2);
+  if(s.p1===3&&s.p2===3)s.deuce=true;
+  return s;
+}
+
+function gp(m,p){
+  if(m.mtb)return p===1?String(m.mtb1):String(m.mtb2);
+  if(m.tb)return p===1?String(m.tb1):String(m.tb2);
+  if(m.deuce)return"40";if(m.adv)return m.advP===p?"AD":"40";
+  const v=p===1?m.p1:m.p2;return PTS[v]||String(v);
+}
+function gst(m,n1,n2){
+  if(m.over)return(m.winner===1?n1:n2)+" wins!";
+  if(m.mtb)return`MTB ${m.mtb1}\u2013${m.mtb2}`;
+  if(m.tb)return`TB ${m.tb1}\u2013${m.tb2}`;
+  if(m.deuce)return"Deuce";if(m.adv)return`AD ${m.advP===1?n1:n2}`;
+  return`${PTS[m.p1]}\u2013${PTS[m.p2]}`;
+}
+function chkSw(m){
+  if(m.over)return false;
+  if(m.mtb){const x=m.mtb1+m.mtb2;return x>0&&x%6===0}
+  if(m.tb){const x=m.tb1+m.tb2;return x>0&&x%6===0}
+  const g=m.g1+m.g2;return g>0&&g%2!==0&&m.p1===0&&m.p2===0;
+}
 
 /* ═══════════════ UMPIRE VOICE ═══════════════ */
-const Umpire = {
-  enabled: true,
-
-  say(text, delay=0) {
-    if (!this.enabled) return;
-    if (!('speechSynthesis' in window)) return;
-    setTimeout(() => {
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'en-US';
-      u.rate = 0.78;   // slower — clear and authoritative
-      u.pitch = 0.85;  // slightly deeper
-      const voices = speechSynthesis.getVoices();
-      const pref = voices.find(v => v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Karen'))
-                || voices.find(v => v.lang.startsWith('en') && !v.name.includes('Google'))
-                || voices.find(v => v.lang.startsWith('en'));
-      if (pref) u.voice = pref;
-      speechSynthesis.cancel();
-      speechSynthesis.speak(u);
-    }, delay);
+const Umpire={
+  enabled:true,
+  say(text,delay=0){
+    if(!this.enabled||!('speechSynthesis'in window))return;
+    setTimeout(()=>{
+      const u=new SpeechSynthesisUtterance(text);u.lang='en-US';u.rate=0.78;u.pitch=0.85;
+      const v=speechSynthesis.getVoices();
+      const pr=v.find(x=>x.name.includes('Samantha')||x.name.includes('Daniel')||x.name.includes('Karen'))||v.find(x=>x.lang.startsWith('en')&&!x.name.includes('Google'))||v.find(x=>x.lang.startsWith('en'));
+      if(pr)u.voice=pr;speechSynthesis.cancel();speechSynthesis.speak(u);
+    },delay);
   },
-
-  announce(prev, next, n1, n2) {
-    if (!this.enabled) return;
-
+  announce(prev,next,n1,n2){
+    if(!this.enabled)return;
     // Match over
-    if (next.over && !prev.over) {
-      const w = next.winner === 1 ? n1 : n2;
-      this.say(`Game, set, match. ${w}`);
+    if(next.over&&!prev.over){this.say(`Game, set, match. ${next.winner===1?n1:n2}`);return}
+    // Match tiebreak
+    if(next.mtb){
+      if(!prev.mtb){this.say("One set all. Match tiebreak");return}
+      const txt=`${next.mtb1}, ${next.mtb2}`;
+      if(chkSw(next))this.say(txt+". Change ends");else this.say(txt);
       return;
     }
-
     // Set won
-    if (next.sets.length > prev.sets.length) {
-      const s = next.sets[next.sets.length - 1];
-      const w = s.a > s.b ? n1 : n2;
-      this.say(`Game and set, ${w}. ${s.a}, ${s.b}`);
-      return;
+    if(next.sets.length>prev.sets.length){
+      const ls=next.sets[next.sets.length-1];const w=ls.a>ls.b?n1:n2;
+      this.say(`Game and set, ${w}. ${ls.a}, ${ls.b}`);return;
     }
-
     // Game won
-    const pg = prev.g1 + prev.g2;
-    const ng = next.g1 + next.g2;
-    if (ng > pg || (pg > 0 && ng === 0 && next.sets.length === prev.sets.length)) {
-      // Tiebreak starting
-      if (next.tb && !prev.tb) {
-        this.say("Six all. Tiebreak");
-        return;
-      }
+    const pg=prev.g1+prev.g2,ng=next.g1+next.g2;
+    if(ng>pg||(pg>0&&ng===0&&next.sets.length===prev.sets.length)){
+      if(next.tb&&!prev.tb){this.say(`${next.cfg.setLen} all. Tiebreak`);return}
       this.say(`Game. ${next.g1}, ${next.g2}`);
-      if (chkSw(next)) this.say("Change ends", 2000);
+      if(chkSw(next))this.say("Change ends",2000);
       return;
     }
-
     // Tiebreak score
-    if (next.tb) {
-      const txt = `${next.tb1}, ${next.tb2}`;
-      if (chkSw(next)) this.say(txt + ". Change ends");
-      else this.say(txt);
-      return;
+    if(next.tb){
+      const txt=`${next.tb1}, ${next.tb2}`;
+      if(chkSw(next))this.say(txt+". Change ends");else this.say(txt);return;
     }
-
+    // No-Ad deciding point — already handled by game win
     // Deuce
-    if (next.deuce) { this.say("Deuce"); return; }
-
+    if(next.deuce){this.say("Deuce");return}
     // Advantage
-    if (next.adv) {
-      this.say(`Advantage, ${next.advP === 1 ? n1 : n2}`);
-      return;
-    }
-
-    // Regular score — server's score first
-    const a = PTS[next.p1], b = PTS[next.p2];
-    if (a === b && a !== "0") this.say(`${a} all`);
-    else if (next.server === 1) this.say(`${a}. ${b}`);
+    if(next.adv){this.say(`Advantage, ${next.advP===1?n1:n2}`);return}
+    // Regular score
+    const a=PTS[next.p1],b=PTS[next.p2];
+    if(a===b&&a!=="0")this.say(`${a} all`);
+    else if(next.server===1)this.say(`${a}. ${b}`);
     else this.say(`${b}. ${a}`);
   }
 };
 
 /* ═══════════════ PILL BADGE ═══════════════ */
 function Badge({children,color=L,bg="rgba(200,255,0,0.08)",style={}}){
-  return <span style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:20,background:bg,color,fontSize:10,fontWeight:600,fontFamily:"var(--mono)",letterSpacing:1,...style}}>{children}</span>;
+  return<span style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:20,background:bg,color,fontSize:10,fontWeight:600,fontFamily:"var(--mono)",letterSpacing:1,...style}}>{children}</span>;
+}
+
+/* ═══════════════ SEGMENT PICKER ═══════════════ */
+function Seg({options,value,onChange,compact}){
+  return(
+    <div style={{display:"flex",background:"var(--card)",borderRadius:10,padding:3,gap:2}}>
+      {options.map(o=>{
+        const sel=o.v===value;
+        return(
+          <button key={o.v} onClick={()=>onChange(o.v)} style={{
+            flex:1,padding:compact?"8px 0":"10px 0",borderRadius:8,
+            background:sel?"rgba(200,255,0,0.12)":"transparent",
+            color:sel?L:"var(--text3)",fontSize:13,fontWeight:sel?700:500,
+            transition:"all .2s",border:sel?`1px solid rgba(200,255,0,0.2)`:"1px solid transparent",
+          }}>{o.l}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ═══════════════ HELP OVERLAY ═══════════════ */
+function HelpSheet({onClose}){
+  return(
+    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:100,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"flex-end",justifyContent:"center",animation:"fadeOverlay .2s ease"}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:400,background:"var(--card2)",borderRadius:"20px 20px 0 0",padding:"20px 24px 32px",maxHeight:"70vh",overflow:"auto",animation:"fadeIn .3s ease"}}>
+        {/* Handle */}
+        <div style={{width:36,height:4,borderRadius:2,background:"var(--border)",margin:"0 auto 16px"}}/>
+
+        <h3 style={{fontSize:16,fontWeight:800,color:"var(--text)",marginBottom:16}}>Scoring Formats</h3>
+
+        <div style={{fontSize:13,color:"var(--text2)",lineHeight:1.9}}>
+          <div style={{marginBottom:16}}>
+            <div style={{color:L,fontWeight:700,marginBottom:4}}>Set Length</div>
+            <div><strong style={{color:"var(--text)"}}>6</strong> — Standard. First to 6 games, win by 2. Tiebreak at 6-6.</div>
+            <div><strong style={{color:"var(--text)"}}>4</strong> — Short set. Great for quick matches or time-limited play.</div>
+            <div><strong style={{color:"var(--text)"}}>8</strong> — Pro set. One long set, common in club tournaments.</div>
+          </div>
+
+          <div style={{marginBottom:16}}>
+            <div style={{color:L,fontWeight:700,marginBottom:4}}>Deuce Rule</div>
+            <div><strong style={{color:"var(--text)"}}>Advantage</strong> — Standard 40-40 deuce with advantage points. Must win by 2.</div>
+            <div><strong style={{color:"var(--text)"}}>No-Ad</strong> — At 40-40, one deciding point wins the game. Popular in doubles and US leagues.</div>
+          </div>
+
+          <div>
+            <div style={{color:L,fontWeight:700,marginBottom:4}}>Final Set</div>
+            <div><strong style={{color:"var(--text)"}}>Normal</strong> — 3rd set plays like any other set.</div>
+            <div><strong style={{color:"var(--text)"}}>Match TB</strong> — At 1 set all, play a tiebreak to 10 instead of a 3rd set. Used in most club and doubles play.</div>
+          </div>
+        </div>
+
+        <button onClick={onClose} style={{width:"100%",marginTop:20,padding:14,borderRadius:12,background:"rgba(255,255,255,0.06)",color:"var(--text2)",fontWeight:700,fontSize:14}}>
+          Got it
+        </button>
+      </div>
+    </div>
+  );
 }
 
 /* ═══════════════ COIN TOSS ═══════════════ */
@@ -223,51 +315,27 @@ function CoinToss({p1,p2,onResult}){
   const[phase,setPhase]=useState("idle");
   const[result,setResult]=useState(null);
   const toss=()=>{vib(40);setPhase("spin");const w=Math.random()<.5?1:2;setTimeout(()=>{setResult(w);setPhase("done");vib([20,60,20])},1500)};
-
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20,padding:24,width:"100%",height:"100%",animation:"fadeIn .4s ease"}}>
       <Badge color="var(--text3)" bg="rgba(255,255,255,0.04)">SERVE TOSS</Badge>
-
-      <div onClick={phase==="idle"?toss:undefined} style={{
-        width:110,height:110,borderRadius:"50%",
-        background:phase==="spin"?"conic-gradient(#C8FF00,#07090A,#C8FF00,#07090A,#C8FF00)":result?"linear-gradient(135deg,#C8FF00,#8BA600)":"var(--card)",
-        border:`2.5px solid ${result?L:"var(--border)"}`,
-        display:"flex",alignItems:"center",justifyContent:"center",
-        animation:phase==="spin"?"spin .3s linear infinite":"none",
-        cursor:phase==="idle"?"pointer":"default",
-        boxShadow:result?`0 0 40px rgba(200,255,0,.25)`:"0 8px 32px rgba(0,0,0,.4)",
-        transition:phase==="spin"?"none":"all .5s",
-      }}>
-        {phase!=="done"?<span style={{fontSize:32}}>🎾</span>:
-          <div style={{textAlign:"center"}}><div style={{fontSize:9,fontWeight:700,color:BG,fontFamily:"var(--mono)",letterSpacing:2}}>WON</div><div style={{fontSize:14,fontWeight:900,color:BG,marginTop:2}}>{result===1?p1:p2}</div></div>
-        }
+      <div onClick={phase==="idle"?toss:undefined} style={{width:110,height:110,borderRadius:"50%",background:phase==="spin"?"conic-gradient(#C8FF00,#07090A,#C8FF00,#07090A,#C8FF00)":result?"linear-gradient(135deg,#C8FF00,#8BA600)":"var(--card)",border:`2.5px solid ${result?L:"var(--border)"}`,display:"flex",alignItems:"center",justifyContent:"center",animation:phase==="spin"?"spin .3s linear infinite":"none",cursor:phase==="idle"?"pointer":"default",boxShadow:result?`0 0 40px rgba(200,255,0,.25)`:"0 8px 32px rgba(0,0,0,.4)",transition:phase==="spin"?"none":"all .5s"}}>
+        {phase!=="done"?<span style={{fontSize:32}}>🎾</span>:<div style={{textAlign:"center"}}><div style={{fontSize:9,fontWeight:700,color:BG,fontFamily:"var(--mono)",letterSpacing:2}}>WON</div><div style={{fontSize:14,fontWeight:900,color:BG,marginTop:2}}>{result===1?p1:p2}</div></div>}
       </div>
-
       {phase==="idle"&&<p style={{color:"var(--text3)",fontSize:14,fontWeight:500}}>Tap the ball to toss</p>}
-
       {phase==="done"&&(
         <div style={{textAlign:"center",animation:"fadeIn .3s ease",width:"100%",maxWidth:300}}>
           <p style={{color:"var(--text2)",fontSize:14,marginBottom:20}}><strong style={{color:L}}>{result===1?p1:p2}</strong> won the toss</p>
           <div style={{display:"flex",gap:10}}>
-            <button onClick={()=>onResult(result)} style={{flex:1,padding:"15px 0",background:L,borderRadius:12,color:BG,fontWeight:800,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-              <Icon d={Icons.check} size={16} color={BG}/> Start
-            </button>
-            <button onClick={()=>onResult(result===1?2:1)} style={{flex:1,padding:"15px 0",background:"var(--card)",borderRadius:12,color:"var(--text2)",fontWeight:700,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-              <Icon d={Icons.swap} size={14} color="var(--text3)"/> Swap
-            </button>
+            <button onClick={()=>onResult(result)} style={{flex:1,padding:"15px 0",background:L,borderRadius:12,color:BG,fontWeight:800,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Icon d={Icons.check} size={16} color={BG}/> Start</button>
+            <button onClick={()=>onResult(result===1?2:1)} style={{flex:1,padding:"15px 0",background:"var(--card)",borderRadius:12,color:"var(--text2)",fontWeight:700,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Icon d={Icons.swap} size={14} color="var(--text3)"/> Swap</button>
           </div>
         </div>
       )}
-
       {phase==="idle"&&(
         <div style={{width:"100%",maxWidth:300}}>
           <p style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",textAlign:"center",marginBottom:8,letterSpacing:2}}>OR PICK MANUALLY</p>
           <div style={{display:"flex",gap:8}}>
-            {[1,2].map(pl=>(
-              <button key={pl} onClick={()=>onResult(pl)} style={{flex:1,padding:"13px 0",background:"var(--card)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text2)",fontSize:13,fontWeight:600}}>
-                {pl===1?p1:p2}
-              </button>
-            ))}
+            {[1,2].map(pl=>(<button key={pl} onClick={()=>onResult(pl)} style={{flex:1,padding:"13px 0",background:"var(--card)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text2)",fontSize:13,fontWeight:600}}>{pl===1?p1:p2}</button>))}
           </div>
         </div>
       )}
@@ -277,97 +345,45 @@ function CoinToss({p1,p2,onResult}){
 
 /* ═══════════════ WATCH CONNECT ═══════════════ */
 function WatchConnect({p1,p2,onReady}){
-  const[st,setSt]=useState("idle"); // idle|busy|ok|fail
-
-  const connect=()=>{
-    setSt("busy");
-    const ok=WatchRemote.activate(p1,p2);
-    setTimeout(()=>setSt(ok&&WatchRemote.active?"ok":"fail"),1200);
-  };
-
+  const[st,setSt]=useState("idle");
+  const connect=()=>{setSt("busy");const ok=WatchRemote.activate(p1,p2);setTimeout(()=>setSt(ok&&WatchRemote.active?"ok":"fail"),1200)};
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",padding:24,animation:"fadeIn .4s ease"}}>
-
-      {/* Watch visual */}
-      <div style={{
-        width:72,height:88,borderRadius:18,
-        background:st==="ok"?"rgba(200,255,0,0.06)":"var(--card)",
-        border:`2px solid ${st==="ok"?L:"var(--border)"}`,
-        display:"flex",alignItems:"center",justifyContent:"center",
-        marginBottom:20,transition:"all .5s",position:"relative",
-        animation:st==="ok"?"glow 2s infinite":"none",
-      }}>
-        {/* Watch band top */}
+      <div style={{width:72,height:88,borderRadius:18,background:st==="ok"?"rgba(200,255,0,0.06)":"var(--card)",border:`2px solid ${st==="ok"?L:"var(--border)"}`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20,transition:"all .5s",position:"relative",animation:st==="ok"?"glow 2s infinite":"none"}}>
         <div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",width:28,height:10,borderRadius:"4px 4px 0 0",background:st==="ok"?"rgba(200,255,0,0.15)":"var(--card2)",border:`1px solid ${st==="ok"?"rgba(200,255,0,0.2)":"var(--border)"}`,borderBottom:"none"}}/>
-        {/* Watch band bottom */}
         <div style={{position:"absolute",bottom:-10,left:"50%",transform:"translateX(-50%)",width:28,height:10,borderRadius:"0 0 4px 4px",background:st==="ok"?"rgba(200,255,0,0.15)":"var(--card2)",border:`1px solid ${st==="ok"?"rgba(200,255,0,0.2)":"var(--border)"}`,borderTop:"none"}}/>
-        {/* Crown */}
         <div style={{position:"absolute",right:-6,top:"50%",transform:"translateY(-50%)",width:5,height:14,borderRadius:3,background:st==="ok"?L:"#333"}}/>
-
-        {st==="busy"?
-          <div style={{width:24,height:24,border:"2.5px solid var(--border)",borderTopColor:L,borderRadius:"50%",animation:"spin .7s linear infinite"}}/>:
-          st==="ok"?
-          <Icon d={Icons.check} size={28} color={L}/>:
-          <span style={{fontSize:24}}>⌚</span>
-        }
+        {st==="busy"?<div style={{width:24,height:24,border:"2.5px solid var(--border)",borderTopColor:L,borderRadius:"50%",animation:"spin .7s linear infinite"}}/>:st==="ok"?<Icon d={Icons.check} size={28} color={L}/>:<span style={{fontSize:24}}>⌚</span>}
       </div>
-
-      <h2 style={{fontSize:20,fontWeight:800,color:"var(--text)",marginBottom:6}}>
-        {st==="ok"?"Watch Connected":"Connect Smartwatch"}
-      </h2>
+      <h2 style={{fontSize:20,fontWeight:800,marginBottom:6}}>{st==="ok"?"Watch Connected":"Connect Smartwatch"}</h2>
       <p style={{color:"var(--text3)",fontSize:13,textAlign:"center",marginBottom:24,maxWidth:280,lineHeight:1.7}}>
         {st==="idle"&&"Start an audio session so your watch shows media controls"}
         {st==="busy"&&"Activating audio session..."}
         {st==="ok"&&"Open media controls on your watch to score points"}
         {st==="fail"&&"Could not start audio. Try again or play without watch."}
       </p>
-
       {st==="ok"&&(
         <div style={{background:"var(--card)",borderRadius:14,padding:16,marginBottom:24,width:"100%",maxWidth:300,animation:"fadeIn .3s ease"}}>
           <p style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:12}}>WATCH CONTROLS</p>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {[
-              {icon:Icons.skip_prev,label:"Previous",desc:`Point ${p1}`,color:L},
-              {icon:Icons.skip_next,label:"Next",desc:`Point ${p2}`,color:L},
-              {icon:Icons.pause,label:"Pause",desc:"Undo last point",color:"#FF9F0A"},
-            ].map((r,i)=>(
+            {[{icon:Icons.skip_prev,label:"Previous",desc:`Point ${p1}`,color:L},{icon:Icons.skip_next,label:"Next",desc:`Point ${p2}`,color:L},{icon:Icons.pause,label:"Pause",desc:"Undo last point",color:"#FF9F0A"}].map((r,i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:12}}>
-                <div style={{width:34,height:34,borderRadius:8,background:"rgba(255,255,255,0.04)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  <Icon d={r.icon} size={16} color={r.color}/>
-                </div>
-                <div>
-                  <span style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{r.label}</span>
-                  <span style={{fontSize:12,color:"var(--text3)",marginLeft:8}}>{r.desc}</span>
-                </div>
+                <div style={{width:34,height:34,borderRadius:8,background:"rgba(255,255,255,0.04)",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon d={r.icon} size={16} color={r.color}/></div>
+                <div><span style={{fontSize:13,fontWeight:600}}>{r.label}</span><span style={{fontSize:12,color:"var(--text3)",marginLeft:8}}>{r.desc}</span></div>
               </div>
             ))}
           </div>
         </div>
       )}
-
-      {st==="idle"&&(
-        <>
-          <button onClick={connect} style={{width:"100%",maxWidth:300,padding:16,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-            Activate Smartwatch
-          </button>
-          <button onClick={()=>onReady(false)} style={{marginTop:14,padding:"12px 24px",background:"transparent",color:"var(--text3)",fontSize:13,fontWeight:500}}>
-            Skip — play without watch
-          </button>
-        </>
-      )}
-
-      {st==="ok"&&(
-        <button onClick={()=>onReady(true)} style={{width:"100%",maxWidth:300,padding:16,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:15,animation:"glow 2s infinite"}}>
-          Start Match 🎾
-        </button>
-      )}
-
-      {st==="fail"&&(
-        <div style={{display:"flex",gap:10,width:"100%",maxWidth:300}}>
-          <button onClick={connect} style={{flex:1,padding:"14px 0",background:"var(--card)",borderRadius:12,color:"var(--text2)",fontWeight:700,fontSize:14}}>Retry</button>
-          <button onClick={()=>onReady(false)} style={{flex:1,padding:"14px 0",background:L,borderRadius:12,color:BG,fontWeight:800,fontSize:14}}>Without watch</button>
-        </div>
-      )}
+      {st==="idle"&&(<>
+        <button onClick={connect} style={{width:"100%",maxWidth:300,padding:16,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:15}}>Activate Smartwatch</button>
+        <button onClick={()=>onReady(false)} style={{marginTop:14,padding:"12px 24px",background:"transparent",color:"var(--text3)",fontSize:13,fontWeight:500}}>Skip — play without watch</button>
+      </>)}
+      {st==="ok"&&(<button onClick={()=>onReady(true)} style={{width:"100%",maxWidth:300,padding:16,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:15,animation:"glow 2s infinite"}}>Start Match 🎾</button>)}
+      {st==="fail"&&(<div style={{display:"flex",gap:10,width:"100%",maxWidth:300}}>
+        <button onClick={connect} style={{flex:1,padding:"14px 0",background:"var(--card)",borderRadius:12,color:"var(--text2)",fontWeight:700}}>Retry</button>
+        <button onClick={()=>onReady(false)} style={{flex:1,padding:"14px 0",background:L,borderRadius:12,color:BG,fontWeight:800}}>Without watch</button>
+      </div>)}
     </div>
   );
 }
@@ -377,6 +393,12 @@ function App(){
   const[scr,setScr]=useState("setup");
   const[p1,setP1]=useState("Player 1");
   const[p2,setP2]=useState("Player 2");
+  // Format config
+  const[setLen,setSetLen]=useState(6);
+  const[noAd,setNoAd]=useState(false);
+  const[matchTB,setMatchTB]=useState(false);
+  const[showHelp,setShowHelp]=useState(false);
+
   const[m,setM]=useState(null);
   const[hist,setHist]=useState([]);
   const[el,setEl]=useState(0);
@@ -389,6 +411,7 @@ function App(){
   const mR=useRef(null);const hR=useRef([]);const p1R=useRef(p1);const p2R=useRef(p2);
   mR.current=m;hR.current=hist;p1R.current=p1;p2R.current=p2;
 
+  const cfg={setLen,noAd,matchTB};
   const flash=(t)=>{setRMsg(t);setTimeout(()=>setRMsg(null),2500)};
 
   const score=useCallback((p,src)=>{
@@ -396,71 +419,102 @@ function App(){
     setHist(h=>[...h,clone(c)]);const n=pt(c,p);setM(n);
     setFl(p);setTimeout(()=>setFl(null),350);
     WatchRemote.update(gst(n,p1R.current,p2R.current),p1R.current,p2R.current);
-    // Umpire voice
-    Umpire.announce(c, n, p1R.current, p2R.current);
+    Umpire.announce(c,n,p1R.current,p2R.current);
     if(src)flash(src);
     if(n.over)setTimeout(()=>{clearInterval(ti.current);wl.current?.release();WatchRemote.stop();setWatchOn(false);setScr("final")},1800);
   },[]);
 
   const undo=useCallback((src)=>{
     const h=hR.current;if(!h.length)return;vib(20);
-    setM(h[h.length-1]);setHist(x=>x.slice(0,-1));
-    Umpire.say("Correction");
-    if(src)flash(src);
+    setM(h[h.length-1]);setHist(x=>x.slice(0,-1));Umpire.say("Correction");if(src)flash(src);
   },[]);
 
-  // Sync Umpire with sound toggle
-  useEffect(()=>{ Umpire.enabled = soundOn; if(!soundOn) speechSynthesis?.cancel(); },[soundOn]);
-  // Load voices early
-  useEffect(()=>{ speechSynthesis?.getVoices(); },[]);
+  useEffect(()=>{Umpire.enabled=soundOn;if(!soundOn)speechSynthesis?.cancel()},[soundOn]);
+  useEffect(()=>{speechSynthesis?.getVoices()},[]);
 
   const onToss=(s)=>{setSv(s);setScr("watch")};
-
   const onWatch=(connected)=>{
     setWatchOn(connected);
-    if(connected){
-      WatchRemote.onPrev=()=>score(1,"⏮ "+p1R.current);
-      WatchRemote.onNext=()=>score(2,"⏭ "+p2R.current);
-      WatchRemote.onPause=()=>undo("⏸ Undo");
-    }
-    setM(fresh(sv));setHist([]);setEl(0);setScr("match");
+    if(connected){WatchRemote.onPrev=()=>score(1,"⏮ "+p1R.current);WatchRemote.onNext=()=>score(2,"⏭ "+p2R.current);WatchRemote.onPause=()=>undo("⏸ Undo")}
+    setM(fresh(sv,cfg));setHist([]);setEl(0);setScr("match");
     st.current=Date.now();ti.current=setInterval(()=>setEl(Date.now()-st.current),1000);
     (async()=>{try{if("wakeLock"in navigator)wl.current=await navigator.wakeLock.request("screen")}catch{}})();
-    // Announce start
-    const sName = sv===1 ? p1 : p2;
-    Umpire.say(`${sName} to serve. Play`, 600);
+    const sName=sv===1?p1:p2;Umpire.say(`${sName} to serve. Play`,600);
   };
 
   const end=()=>{clearInterval(ti.current);WatchRemote.stop();setWatchOn(false);wl.current?.release();speechSynthesis?.cancel();setScr("final")};
   const reset=()=>{clearInterval(ti.current);WatchRemote.stop();setWatchOn(false);wl.current?.release();speechSynthesis?.cancel();setScr("setup")};
-
   useEffect(()=>()=>{clearInterval(ti.current);WatchRemote.stop();wl.current?.release();speechSynthesis?.cancel()},[]);
 
   const sw=m?chkSw(m):false;
 
+  // Format label for display
+  const fmtLabel=()=>{
+    const parts=[];
+    if(setLen!==6)parts.push(`Set to ${setLen}`);
+    if(noAd)parts.push("No-Ad");
+    if(matchTB)parts.push("Match TB");
+    return parts.length?parts.join(" · "):"Standard";
+  };
+
   return(
     <div style={{fontFamily:"var(--font)",height:"100%",background:"var(--bg)",color:"var(--text)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
 
+      {/* ═══════ HELP OVERLAY ═══════ */}
+      {showHelp&&<HelpSheet onClose={()=>setShowHelp(false)}/>}
+
       {/* ═══════ SETUP ═══════ */}
       {scr==="setup"&&(
-        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:28,animation:"fadeIn .5s ease"}}>
-          {/* Logo mark */}
-          <div style={{width:64,height:64,borderRadius:18,background:"linear-gradient(135deg,rgba(200,255,0,0.12),rgba(200,255,0,0.04))",border:"1px solid rgba(200,255,0,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:30,marginBottom:16}}>🎾</div>
-          <h1 style={{fontSize:28,fontWeight:900,color:"var(--text)",letterSpacing:-.5,marginBottom:3}}>Tennis Score</h1>
-          <p style={{color:"var(--text3)",fontSize:11,fontFamily:"var(--mono)",letterSpacing:3,marginBottom:36}}>SMART SCOREBOARD</p>
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:28,overflow:"auto",animation:"fadeIn .5s ease"}}>
+          <div style={{width:56,height:56,borderRadius:16,background:"linear-gradient(135deg,rgba(200,255,0,0.12),rgba(200,255,0,0.04))",border:"1px solid rgba(200,255,0,0.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,marginBottom:12,marginTop:20}}>🎾</div>
+          <h1 style={{fontSize:26,fontWeight:900,letterSpacing:-.5,marginBottom:3}}>Tennis Score</h1>
+          <p style={{color:"var(--text3)",fontSize:10,fontFamily:"var(--mono)",letterSpacing:3,marginBottom:28}}>SMART SCOREBOARD</p>
 
           <div style={{width:"100%",maxWidth:340}}>
+            {/* Player names */}
             {[{l:"PLAYER 1",v:p1,s:setP1},{l:"PLAYER 2",v:p2,s:setP2}].map((f,i)=>(
-              <div key={i} style={{marginBottom:14}}>
-                <label style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,display:"block",marginBottom:5}}>{f.l}</label>
+              <div key={i} style={{marginBottom:12}}>
+                <label style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,display:"block",marginBottom:4}}>{f.l}</label>
                 <input value={f.v} onChange={e=>f.s(e.target.value)}
                   onFocus={e=>{e.target.style.borderColor=L;e.target.style.background="rgba(200,255,0,0.03)"}}
                   onBlur={e=>{e.target.style.borderColor="var(--border)";e.target.style.background="var(--card)"}}
-                  style={{width:"100%",padding:"14px 16px",borderRadius:12,background:"var(--card)",border:"1.5px solid var(--border)",color:"var(--text)",fontSize:16,fontWeight:600,transition:"all .2s"}}
+                  style={{width:"100%",padding:"13px 16px",borderRadius:12,background:"var(--card)",border:"1.5px solid var(--border)",color:"var(--text)",fontSize:16,fontWeight:600,transition:"all .2s"}}
                 />
               </div>
             ))}
-            <button onClick={()=>setScr("toss")} style={{width:"100%",marginTop:8,padding:17,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:16,animation:"glow 3s infinite"}}>
+
+            {/* FORMAT SECTION */}
+            <div style={{marginTop:16,marginBottom:16}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                <span style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2}}>MATCH FORMAT</span>
+                <button onClick={()=>setShowHelp(true)} style={{
+                  width:24,height:24,borderRadius:12,
+                  background:"rgba(255,255,255,0.05)",border:"1px solid var(--border)",
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  color:"var(--text3)",fontSize:12,fontWeight:700,fontFamily:"var(--mono)",
+                }}>?</button>
+              </div>
+
+              {/* Set Length */}
+              <div style={{marginBottom:10}}>
+                <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>Set Length</label>
+                <Seg options={[{v:4,l:"4"},{v:6,l:"6"},{v:8,l:"8 Pro"}]} value={setLen} onChange={setSetLen} compact/>
+              </div>
+
+              {/* Deuce */}
+              <div style={{marginBottom:10}}>
+                <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>Deuce</label>
+                <Seg options={[{v:false,l:"Advantage"},{v:true,l:"No-Ad"}]} value={noAd} onChange={setNoAd} compact/>
+              </div>
+
+              {/* Final Set */}
+              <div>
+                <label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>Final Set</label>
+                <Seg options={[{v:false,l:"Normal"},{v:true,l:"Match TB (10)"}]} value={matchTB} onChange={setMatchTB} compact/>
+              </div>
+            </div>
+
+            <button onClick={()=>setScr("toss")} style={{width:"100%",padding:17,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:16}}>
               Continue
             </button>
           </div>
@@ -476,13 +530,10 @@ function App(){
       {/* ═══════ MATCH ═══════ */}
       {scr==="match"&&m&&(
         <div style={{flex:1,display:"flex",flexDirection:"column"}}>
-
           {/* Status bar */}
-          <div style={{display:"flex",alignItems:"center",padding:"8px 16px",gap:8,borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
-            {watchOn?
-              <Badge color={L} bg="rgba(200,255,0,0.06)"><span style={{width:5,height:5,borderRadius:"50%",background:L,display:"inline-block",animation:"pulse 1.5s infinite"}}/>Watch</Badge>:
-              <Badge color="var(--text3)" bg="rgba(255,255,255,0.03)">Touch</Badge>
-            }
+          <div style={{display:"flex",alignItems:"center",padding:"8px 16px",gap:6,borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+            {watchOn?<Badge color={L} bg="rgba(200,255,0,0.06)"><span style={{width:5,height:5,borderRadius:"50%",background:L,display:"inline-block",animation:"pulse 1.5s infinite"}}/>Watch</Badge>:<Badge color="var(--text3)" bg="rgba(255,255,255,0.03)">Touch</Badge>}
+            {fmtLabel()!=="Standard"&&<Badge color="var(--text3)" bg="rgba(255,255,255,0.03)">{fmtLabel()}</Badge>}
             <span style={{flex:1}}/>
             {rMsg&&<Badge color={L} bg="rgba(200,255,0,0.1)" style={{animation:"popIn .2s ease"}}>{rMsg}</Badge>}
           </div>
@@ -490,23 +541,19 @@ function App(){
           {/* Timer bar */}
           <div style={{padding:"8px 16px",display:"flex",justifyContent:"space-between",color:"var(--text3)",fontSize:12,fontFamily:"var(--mono)"}}>
             <span>{fmt(el)}</span>
-            <span style={{color:m.tb?L:m.deuce?"#FF9F0A":"var(--text3)",fontWeight:m.tb||m.deuce?600:400}}>{m.tb?"TIEBREAK":m.deuce?"DEUCE":m.adv?"ADVANTAGE":`SET ${m.sets.length+1}`}</span>
+            <span style={{color:m.mtb?L:m.tb?L:m.deuce?"#FF9F0A":"var(--text3)",fontWeight:m.mtb||m.tb||m.deuce?600:400}}>{m.mtb?"MATCH TIEBREAK":m.tb?"TIEBREAK":m.deuce?"DEUCE":m.adv?"ADVANTAGE":`SET ${m.sets.length+1}`}</span>
             <span>PT {m.pn}</span>
           </div>
 
-          {/* Change ends alert */}
-          {sw&&(
-            <div style={{margin:"0 16px 6px",padding:"10px 16px",borderRadius:10,background:"rgba(200,255,0,0.08)",border:"1px solid rgba(200,255,0,0.15)",display:"flex",alignItems:"center",gap:10,animation:"slideDown .3s ease"}}>
-              <Icon d={Icons.swap} size={18} color={L}/>
-              <span style={{fontSize:13,fontWeight:700,color:L}}>Change Ends</span>
-            </div>
-          )}
+          {/* Change ends */}
+          {sw&&(<div style={{margin:"0 16px 6px",padding:"10px 16px",borderRadius:10,background:"rgba(200,255,0,0.08)",border:"1px solid rgba(200,255,0,0.15)",display:"flex",alignItems:"center",gap:10,animation:"slideDown .3s ease"}}><Icon d={Icons.swap} size={18} color={L}/><span style={{fontSize:13,fontWeight:700,color:L}}>Change Ends</span></div>)}
 
           {/* Set history */}
           {m.sets.length>0&&(
             <div style={{display:"flex",justifyContent:"center",gap:12,padding:"4px 16px 8px"}}>
               {m.sets.map((s,i)=>(
                 <div key={i} style={{background:"var(--card)",borderRadius:8,padding:"4px 12px",display:"flex",gap:6,alignItems:"center"}}>
+                  {s.mtb&&<span style={{fontSize:8,color:L,fontFamily:"var(--mono)"}}>TB</span>}
                   <span style={{fontSize:13,fontWeight:700,color:s.a>s.b?L:"var(--text3)",fontFamily:"var(--mono)"}}>{s.a}</span>
                   <span style={{fontSize:10,color:"var(--border)"}}>–</span>
                   <span style={{fontSize:13,fontWeight:700,color:s.b>s.a?L:"var(--text3)",fontFamily:"var(--mono)"}}>{s.b}</span>
@@ -521,34 +568,15 @@ function App(){
               {[1,2].map(pl=>{
                 const srv=m.server===pl,pts=gp(m,pl),isAdv=m.adv&&m.advP===pl;
                 return(
-                  <div key={pl} style={{
-                    background:fl===pl?"rgba(200,255,0,0.05)":"var(--card)",
-                    borderRadius:22,padding:"20px 16px 18px",textAlign:"center",
-                    position:"relative",transition:"background .3s, border .3s",
-                    border:srv?`1.5px solid rgba(200,255,0,0.35)`:`1.5px solid ${isAdv?"rgba(200,255,0,0.15)":"var(--border)"}`,
-                  }}>
-                    {/* Serve dot */}
+                  <div key={pl} style={{background:fl===pl?"rgba(200,255,0,0.05)":"var(--card)",borderRadius:22,padding:"20px 16px 18px",textAlign:"center",position:"relative",transition:"background .3s, border .3s",border:srv?`1.5px solid rgba(200,255,0,0.35)`:`1.5px solid ${isAdv?"rgba(200,255,0,0.15)":"var(--border)"}`}}>
                     {srv&&<div style={{position:"absolute",top:12,right:14,width:7,height:7,borderRadius:"50%",background:L,boxShadow:`0 0 8px ${L}`}}/>}
-
-                    {/* Name */}
                     <div style={{color:"var(--text2)",fontWeight:700,fontSize:14,marginBottom:12,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{pl===1?p1:p2}</div>
-
-                    {/* Sets & Games */}
                     <div style={{display:"flex",justifyContent:"center",gap:20,marginBottom:14}}>
-                      <div>
-                        <div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:3}}>SETS</div>
-                        <div style={{fontSize:20,fontWeight:800}}>{pl===1?m.s1:m.s2}</div>
-                      </div>
+                      <div><div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:3}}>SETS</div><div style={{fontSize:20,fontWeight:800}}>{pl===1?m.s1:m.s2}</div></div>
                       <div style={{width:1,background:"var(--border)"}}/>
-                      <div>
-                        <div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:3}}>GAMES</div>
-                        <div style={{fontSize:20,fontWeight:800}}>{pl===1?m.g1:m.g2}</div>
-                      </div>
+                      <div><div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:3}}>{m.mtb?"MTB":"GAMES"}</div><div style={{fontSize:20,fontWeight:800}}>{m.mtb?(pl===1?m.mtb1:m.mtb2):(pl===1?m.g1:m.g2)}</div></div>
                     </div>
-
-                    {/* Points — big number */}
                     <div style={{fontSize:72,fontWeight:900,lineHeight:1,color:pts==="AD"?L:"var(--text)",transition:"color .2s"}}>{pts}</div>
-
                     {srv&&<div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",marginTop:10,letterSpacing:2}}>SERVING</div>}
                   </div>
                 );
@@ -558,55 +586,24 @@ function App(){
 
           {/* Controls */}
           <div style={{padding:"8px 12px 14px",paddingBottom:"max(14px, env(safe-area-inset-bottom))"}}>
-            {/* Score buttons */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
               {[1,2].map(pl=>(
-                <button key={pl} onClick={()=>score(pl)} style={{
-                  padding:"22px 0",borderRadius:16,
-                  background:"var(--card)",color:L,
-                  fontSize:16,fontWeight:800,
-                  border:`1.5px solid rgba(200,255,0,0.3)`,
-                  display:"flex",alignItems:"center",justifyContent:"center",gap:6,
-                }}>
+                <button key={pl} onClick={()=>score(pl)} style={{padding:"22px 0",borderRadius:16,background:"var(--card)",color:L,fontSize:16,fontWeight:800,border:"1.5px solid rgba(200,255,0,0.3)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
                   {pl===1&&<svg width="10" height="12" viewBox="0 0 10 12" fill={L}><path d="M0 6l10-6v12z"/></svg>}
                   {pl===1?p1:p2}
                   {pl===2&&<svg width="10" height="12" viewBox="0 0 10 12" fill={L}><path d="M10 6L0 0v12z"/></svg>}
                 </button>
               ))}
             </div>
-
-            {/* Action buttons */}
             <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:8}}>
-              <button onClick={()=>undo()} disabled={!hist.length} style={{
-                padding:"13px 0",borderRadius:12,
-                background:"var(--card)",
-                border:"1px solid var(--border)",
-                color:hist.length?"var(--text2)":"var(--border)",
-                fontSize:13,fontWeight:600,
-                display:"flex",alignItems:"center",justifyContent:"center",gap:6,
-                opacity:hist.length?1:.4,
-              }}>
-                <Icon d={Icons.undo} size={15} color={hist.length?"var(--text2)":"var(--border)"}/>
-                Undo
+              <button onClick={()=>undo()} disabled={!hist.length} style={{padding:"13px 0",borderRadius:12,background:"var(--card)",border:"1px solid var(--border)",color:hist.length?"var(--text2)":"var(--border)",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:6,opacity:hist.length?1:.4}}>
+                <Icon d={Icons.undo} size={15} color={hist.length?"var(--text2)":"var(--border)"}/>Undo
               </button>
-              <button onClick={()=>setSoundOn(x=>!x)} style={{
-                width:48,height:48,borderRadius:24,
-                background:soundOn?"rgba(200,255,0,0.1)":"var(--card)",
-                border:`1.5px solid ${soundOn?"rgba(200,255,0,0.25)":"var(--border)"}`,
-                display:"flex",alignItems:"center",justifyContent:"center",
-                transition:"all .2s",
-              }}>
+              <button onClick={()=>setSoundOn(x=>!x)} style={{width:48,height:48,borderRadius:24,background:soundOn?"rgba(200,255,0,0.1)":"var(--card)",border:`1.5px solid ${soundOn?"rgba(200,255,0,0.25)":"var(--border)"}`,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
                 <Icon d={soundOn?Icons.sound_on:Icons.sound_off} size={18} color={soundOn?L:"var(--text3)"}/>
               </button>
-              <button onClick={end} style={{
-                padding:"13px 0",borderRadius:12,
-                background:"var(--card)",
-                border:"1px solid var(--border)",
-                color:"var(--text3)",fontSize:13,fontWeight:600,
-                display:"flex",alignItems:"center",justifyContent:"center",gap:6,
-              }}>
-                <Icon d={Icons.end} size={14} color="var(--text3)"/>
-                End Match
+              <button onClick={end} style={{padding:"13px 0",borderRadius:12,background:"var(--card)",border:"1px solid var(--border)",color:"var(--text3)",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                <Icon d={Icons.end} size={14} color="var(--text3)"/>End Match
               </button>
             </div>
           </div>
@@ -617,29 +614,23 @@ function App(){
       {scr==="final"&&m&&(
         <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,animation:"fadeIn .5s ease"}}>
           <div style={{fontSize:56,marginBottom:12}}>🏆</div>
-          <h2 style={{color:L,fontSize:26,fontWeight:900,marginBottom:4}}>
-            {m.winner?`${m.winner===1?p1:p2} Wins!`:"Match Ended"}
-          </h2>
+          <h2 style={{color:L,fontSize:26,fontWeight:900,marginBottom:4}}>{m.winner?`${m.winner===1?p1:p2} Wins!`:"Match Ended"}</h2>
           <p style={{color:"var(--text3)",fontSize:13,marginBottom:24,fontFamily:"var(--mono)"}}>{fmt(el)} duration</p>
 
-          {/* Score table */}
           <div style={{width:"100%",maxWidth:340,background:"var(--card)",borderRadius:16,padding:20,marginBottom:16}}>
             <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"var(--mono)",fontSize:13}}>
-              <thead>
-                <tr style={{color:"var(--text3)",fontSize:10,letterSpacing:2}}>
-                  <th style={{textAlign:"left",padding:"0 0 12px",fontWeight:500}}>PLAYER</th>
-                  {[1,2,3].map(i=><th key={i} style={{textAlign:"center",padding:"0 0 12px",fontWeight:500}}>SET {i}</th>)}
-                </tr>
-              </thead>
+              <thead><tr style={{color:"var(--text3)",fontSize:10,letterSpacing:2}}>
+                <th style={{textAlign:"left",padding:"0 0 12px",fontWeight:500}}>PLAYER</th>
+                {m.sets.map((_,i)=><th key={i} style={{textAlign:"center",padding:"0 0 12px",fontWeight:500}}>{_.mtb?"MTB":`S${i+1}`}</th>)}
+              </tr></thead>
               <tbody>
                 {[1,2].map(pl=>(
                   <tr key={pl}>
                     <td style={{fontWeight:700,color:m.winner===pl?L:"var(--text)",padding:"6px 0",maxWidth:100,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pl===1?p1:p2}</td>
-                    {[0,1,2].map(i=>{
-                      const set=m.sets[i];let val="–",col="var(--border)";
-                      if(set){val=pl===1?set.a:set.b;col=(pl===1?set.a>set.b:set.b>set.a)?"var(--text)":"var(--text3)"}
-                      else if(!m.over&&m.sets.length===i){val=pl===1?m.g1:m.g2;col="var(--text3)"}
-                      return<td key={i} style={{textAlign:"center",fontWeight:700,fontSize:18,color:col,padding:"6px 0"}}>{val}</td>;
+                    {m.sets.map((set,i)=>{
+                      const v=pl===1?set.a:set.b;
+                      const won=pl===1?set.a>set.b:set.b>set.a;
+                      return<td key={i} style={{textAlign:"center",fontWeight:700,fontSize:18,color:won?"var(--text)":"var(--text3)",padding:"6px 0"}}>{v}</td>;
                     })}
                   </tr>
                 ))}
@@ -647,23 +638,16 @@ function App(){
             </table>
           </div>
 
-          {/* Stats */}
           <div style={{display:"flex",gap:8,width:"100%",maxWidth:340,marginBottom:28}}>
-            {[1,2].map(pl=>{
-              const t=pl===1?m.t1:m.t2;const o=pl===1?m.t2:m.t1;
-              return(
-                <div key={pl} style={{flex:1,background:"var(--card)",padding:14,borderRadius:12,textAlign:"center"}}>
-                  <div style={{fontSize:9,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:4}}>TOTAL PTS</div>
-                  <div style={{fontSize:22,fontWeight:800,color:t>o?"var(--text)":"var(--text3)"}}>{t}</div>
-                  <div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{pl===1?p1:p2}</div>
-                </div>
-              );
-            })}
+            {[1,2].map(pl=>{const t=pl===1?m.t1:m.t2;const o=pl===1?m.t2:m.t1;return(
+              <div key={pl} style={{flex:1,background:"var(--card)",padding:14,borderRadius:12,textAlign:"center"}}>
+                <div style={{fontSize:9,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:4}}>TOTAL PTS</div>
+                <div style={{fontSize:22,fontWeight:800,color:t>o?"var(--text)":"var(--text3)"}}>{t}</div>
+                <div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{pl===1?p1:p2}</div>
+              </div>
+            )})}
           </div>
-
-          <button onClick={reset} style={{width:"100%",maxWidth:340,padding:17,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:16}}>
-            New Match
-          </button>
+          <button onClick={reset} style={{width:"100%",maxWidth:340,padding:17,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:16}}>New Match</button>
         </div>
       )}
     </div>
