@@ -59,7 +59,6 @@ const I={
   skip_prev:"M6 6h2v12H6z M20 6l-10 6 10 6z",
   skip_next:"M16 6h2v12h-2z M4 6l10 6-10 6z",
   pause:"M6 4h4v16H6z M14 4h4v16h-4z",
-  eye:"M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
 };
 
 /* ─── MEDIA SESSION ─── */
@@ -114,13 +113,22 @@ const Ump={
   }
 };
 
-/* ─── STATE ENCODING for sharing ─── */
-function encodeState(m,n1,n2,el){
-  const d={n1,n2,el:Math.round(el/1000),...m};
-  return btoa(encodeURIComponent(JSON.stringify(d)));
-}
-function decodeState(hash){
-  try{return JSON.parse(decodeURIComponent(atob(hash)))}catch{return null}
+/* ─── SCORE TEXT FORMATTER for sharing ─── */
+function formatScoreMsg(m,p1,p2,el){
+  let lines = [`🎾 ${p1} vs ${p2}`];
+  if(m.sets?.length>0) lines.push(m.sets.map(s=>s.mtb?`TB: ${s.a}–${s.b}`:`${s.a}–${s.b}`).join('  '));
+  if(m.over){
+    lines.push(`🏆 ${m.winner===1?p1:p2} wins!`);
+  } else {
+    lines.push(`Set ${m.sets.length+1}: ${m.g1}–${m.g2}${m.tb?' (TB)':m.mtb?' (Match TB)':''}`);
+    const pts = scoreText(m,p1,p2);
+    if(m.deuce) lines.push('Deuce');
+    else if(m.adv) lines.push(`AD ${m.advP===1?p1:p2}`);
+    else lines.push(`Points: ${pts}`);
+    lines.push(`${m.server===1?p1:p2} serving`);
+  }
+  lines.push(`⏱ ${fmt(el)}`);
+  return lines.join('\n');
 }
 
 /* ─── SMALL COMPONENTS ─── */
@@ -194,98 +202,28 @@ function EditSheet({m,p1,p2,onApply,onClose}){
 /* ─── SHARE SHEET ─── */
 function ShareSheet({m,p1,p2,el,onClose}){
   const[copied,setCopied]=useState(false);
-  const url=window.location.origin+window.location.pathname+'?v='+encodeState(m,p1,p2,el);
-  const copy=()=>{navigator.clipboard?.writeText(url).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000)}).catch(()=>{})};
+  const msg=formatScoreMsg(m,p1,p2,el);
+
+  const share=async()=>{
+    // Try native share (iOS/Android share sheet)
+    if(navigator.share){
+      try{await navigator.share({text:msg});onClose();return}catch{}
+    }
+    // Fallback: copy to clipboard
+    try{await navigator.clipboard.writeText(msg);setCopied(true);setTimeout(()=>{setCopied(false);onClose()},1500)}catch{}
+  };
+
   return(<Sheet onClose={onClose}>
-    <h3 style={{fontSize:16,fontWeight:800,marginBottom:6}}>Share Live Score</h3>
-    <p style={{fontSize:12,color:"var(--text3)",marginBottom:16,lineHeight:1.6}}>Copy the link and send it. Anyone who opens it will see the current score. Share again after each point to update.</p>
+    <h3 style={{fontSize:16,fontWeight:800,marginBottom:6}}>Share Score</h3>
+    <p style={{fontSize:12,color:"var(--text3)",marginBottom:16,lineHeight:1.6}}>Send the current score via any messenger. Your opponent or spectators will see it instantly.</p>
 
     {/* Score preview */}
-    <div style={{background:"var(--card)",borderRadius:12,padding:14,marginBottom:16,textAlign:"center"}}>
-      <div style={{fontSize:11,color:"var(--text3)",fontFamily:"var(--mono)",marginBottom:6}}>{p1} vs {p2}</div>
-      <div style={{display:"flex",justifyContent:"center",gap:12,marginBottom:8}}>
-        {m.sets.map((s,i)=>(<span key={i} style={{fontFamily:"var(--mono)",fontSize:14,fontWeight:700,color:"var(--text2)"}}>{s.a}–{s.b}</span>))}
-        {!m.over&&<span style={{fontFamily:"var(--mono)",fontSize:14,fontWeight:700,color:L}}>{m.g1}–{m.g2}{m.tb?"*":""}</span>}
-      </div>
-      {!m.over&&<div style={{fontSize:18,fontWeight:800,color:L,fontFamily:"var(--mono)"}}>{scoreText(m,p1,p2)}</div>}
-    </div>
+    <div style={{background:"var(--card)",borderRadius:12,padding:16,marginBottom:16,fontFamily:"var(--mono)",fontSize:13,color:"var(--text2)",lineHeight:1.8,whiteSpace:"pre-line"}}>{msg}</div>
 
-    {/* URL */}
-    <div style={{background:"var(--card)",borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:11,color:"var(--text3)",fontFamily:"var(--mono)",wordBreak:"break-all",maxHeight:60,overflow:"hidden"}}>{url}</div>
-
-    <button onClick={copy} style={{width:"100%",padding:14,borderRadius:12,background:copied?"#22c55e":L,color:BG,fontWeight:800,fontSize:14,transition:"background .2s",animation:copied?"copied .3s ease":"none"}}>
-      {copied?"Copied!":"Copy Link"}
+    <button onClick={share} style={{width:"100%",padding:14,borderRadius:12,background:copied?"#22c55e":L,color:BG,fontWeight:800,fontSize:14,transition:"background .2s",animation:copied?"copied .3s ease":"none"}}>
+      {copied?"Copied!":(navigator.share?"Share":"Copy to Clipboard")}
     </button>
   </Sheet>);
-}
-
-/* ─── SPECTATOR VIEW ─── */
-function SpectatorView({data}){
-  const m=data,n1=data.n1,n2=data.n2,el=data.el*1000;
-  return(
-    <div style={{fontFamily:"var(--font)",height:"100%",background:"var(--bg)",color:"var(--text)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      {/* Header */}
-      <div style={{display:"flex",alignItems:"center",padding:"12px 16px",gap:8,borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-        <Badge color="var(--text2)" bg="rgba(255,255,255,.05)"><Icon d={I.eye} size={10} color="var(--text2)"/> Spectator</Badge>
-        <span style={{flex:1}}/>
-        <span style={{fontSize:11,color:"var(--text3)",fontFamily:"var(--mono)"}}>{fmt(el)}</span>
-      </div>
-
-      {/* Match info */}
-      <div style={{padding:"8px 16px",textAlign:"center"}}>
-        <span style={{color:m.mtb?L:m.tb?L:m.deuce?"#FF9F0A":"var(--text3)",fontSize:12,fontFamily:"var(--mono)",fontWeight:600}}>
-          {m.mtb?"MATCH TIEBREAK":m.tb?"TIEBREAK":m.deuce?"DEUCE":m.adv?"ADVANTAGE":m.over?"FINAL":`SET ${(m.sets?.length||0)+1}`}
-        </span>
-      </div>
-
-      {/* Sets */}
-      {m.sets?.length>0&&(
-        <div style={{display:"flex",justifyContent:"center",gap:12,padding:"4px 16px 8px"}}>
-          {m.sets.map((s,i)=>(<div key={i} style={{background:"var(--card)",borderRadius:8,padding:"4px 12px",display:"flex",gap:6,alignItems:"center"}}>
-            {s.mtb&&<span style={{fontSize:8,color:L,fontFamily:"var(--mono)"}}>TB</span>}
-            <span style={{fontSize:13,fontWeight:700,color:s.a>s.b?L:"var(--text3)",fontFamily:"var(--mono)"}}>{s.a}</span>
-            <span style={{fontSize:10,color:"var(--border)"}}>–</span>
-            <span style={{fontSize:13,fontWeight:700,color:s.b>s.a?L:"var(--text3)",fontFamily:"var(--mono)"}}>{s.b}</span>
-          </div>))}
-        </div>
-      )}
-
-      {/* Scoreboard */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",padding:"0 12px"}}>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          {[1,2].map(pl=>{
-            const srv=m.server===pl,pts=gp(m,pl);
-            return(
-              <div key={pl} style={{background:"var(--card)",borderRadius:22,padding:"24px 16px 22px",textAlign:"center",position:"relative",border:srv?`1.5px solid rgba(200,255,0,.35)`:"1.5px solid var(--border)"}}>
-                {srv&&<div style={{position:"absolute",top:12,right:14,width:7,height:7,borderRadius:"50%",background:L,boxShadow:`0 0 8px ${L}`}}/>}
-                <div style={{color:"var(--text2)",fontWeight:700,fontSize:14,marginBottom:14}}>{pl===1?n1:n2}</div>
-                <div style={{display:"flex",justifyContent:"center",gap:20,marginBottom:16}}>
-                  <div><div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:3}}>SETS</div><div style={{fontSize:22,fontWeight:800}}>{pl===1?m.s1:m.s2}</div></div>
-                  <div style={{width:1,background:"var(--border)"}}/>
-                  <div><div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:3}}>{m.mtb?"MTB":"GAMES"}</div><div style={{fontSize:22,fontWeight:800}}>{m.mtb?(pl===1?m.mtb1:m.mtb2):(pl===1?m.g1:m.g2)}</div></div>
-                </div>
-                <div style={{fontSize:80,fontWeight:900,lineHeight:1,color:pts==="AD"?L:"var(--text)"}}>{pts}</div>
-                {srv&&<div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",marginTop:12,letterSpacing:2}}>SERVING</div>}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Server-first score line */}
-        {!m.over&&(
-          <div style={{textAlign:"center",marginTop:16}}>
-            <span style={{fontSize:11,color:"var(--text3)",fontFamily:"var(--mono)"}}>
-              {m.server===1?n1:n2} serving
-            </span>
-            <div style={{fontSize:22,fontWeight:800,color:L,fontFamily:"var(--mono)",marginTop:4}}>{scoreText(m,n1,n2)}</div>
-          </div>
-        )}
-        {m.over&&<div style={{textAlign:"center",marginTop:20}}><span style={{fontSize:48}}>🏆</span><div style={{fontSize:20,fontWeight:900,color:L,marginTop:8}}>{m.winner===1?n1:n2} Wins!</div></div>}
-      </div>
-
-      <div style={{padding:16,textAlign:"center"}}><p style={{fontSize:11,color:"var(--text3)"}}>Score snapshot. Ask the scorer to reshare for updates.</p></div>
-    </div>
-  );
 }
 
 /* ─── COIN TOSS ─── */
@@ -320,11 +258,6 @@ function WatchConnect({p1,p2,onReady}){
 
 /* ═══════════════ MAIN APP ═══════════════ */
 function App(){
-  // Spectator mode detection
-  const params=new URLSearchParams(window.location.search);
-  const specData=params.get('v')?decodeState(params.get('v')):null;
-  if(specData)return<SpectatorView data={specData}/>;
-
   const[scr,setScr]=useState("setup");
   const[p1,setP1]=useState("Player 1");const[p2,setP2]=useState("Player 2");
   const[setLen,setSetLen]=useState(6);const[noAd,setNoAd]=useState(false);const[matchTB,setMatchTB]=useState(false);
@@ -366,8 +299,8 @@ function App(){
 
       {/* SETUP */}
       {scr==="setup"&&(
-        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:28,overflow:"auto",animation:"fadeIn .5s ease"}}>
-          <div style={{width:56,height:56,borderRadius:16,background:"linear-gradient(135deg,rgba(200,255,0,.12),rgba(200,255,0,.04))",border:"1px solid rgba(200,255,0,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,marginBottom:12,marginTop:20}}>🎾</div>
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:28,overflow:"auto",animation:"fadeIn .5s ease"}}>
+          <div style={{width:56,height:56,borderRadius:16,background:"linear-gradient(135deg,rgba(200,255,0,.12),rgba(200,255,0,.04))",border:"1px solid rgba(200,255,0,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,marginBottom:12}}>🎾</div>
           <h1 style={{fontSize:26,fontWeight:900,letterSpacing:-.5,marginBottom:3}}>Tennis Score</h1>
           <p style={{color:"var(--text3)",fontSize:10,fontFamily:"var(--mono)",letterSpacing:3,marginBottom:28}}>SMART SCOREBOARD</p>
           <div style={{width:"100%",maxWidth:340}}>
