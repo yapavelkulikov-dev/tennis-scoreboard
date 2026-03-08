@@ -1,297 +1,934 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#07090A">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Tennis Score — Smart Scoreboard</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2307090A'/><text y='68' x='50' text-anchor='middle' font-size='60'>🎾</text></svg>">
-  <meta name="apple-mobile-web-app-title" content="Tennis Score">
-  <meta property="og:title" content="Tennis Score">
-  <meta property="og:description" content="Smart tennis scoreboard with smartwatch control.">
-  <meta name="description" content="Smart tennis scoreboard with smartwatch control.">
+  <title>Tennis Scoreboard</title>
+  
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800;900&display=swap');
-    :root{--lime:#C8FF00;--bg:#07090A;--card:#111214;--card2:#161819;--border:#1e2022;--text:#fff;--text2:#a0a4a8;--text3:#5a5e62;--font:'Outfit',sans-serif;--mono:'DM Mono',monospace}
-    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-    html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);font-family:var(--font)}
-    #root{height:100%;height:100dvh}
-    button{border:none;font-family:var(--font);cursor:pointer;-webkit-appearance:none}
-    button:active{transform:scale(.97);transition:transform .1s}
-    input{font-family:var(--font);-webkit-appearance:none}input:focus{outline:none}
-    ::selection{background:rgba(200,255,0,.3)}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-    @keyframes glow{0%,100%{box-shadow:0 0 16px rgba(200,255,0,.15)}50%{box-shadow:0 0 32px rgba(200,255,0,.35)}}
-    @keyframes slideDown{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
-    @keyframes popIn{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
-    @keyframes fadeOverlay{from{opacity:0}to{opacity:1}}
+    body, html { 
+      margin: 0; padding: 0; 
+      background-color: #07090A; 
+      height: 100%; overflow: hidden; 
+      overscroll-behavior: none;
+    }
   </style>
 </head>
-<body><div id="root"></div>
+<body>
+
+<div id="root"></div>
+
 <script type="text/babel">
-const {useState,useEffect,useCallback,useRef}=React;
-const PTS=["0","15","30","40"],L="#C8FF00",BG="#07090A";
-const Icon=({d,size=20,color="#fff",style={}})=>(<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><path d={d}/></svg>);
-const I={undo:"M3 10h10a5 5 0 0 1 0 10H3 M3 10l4-4 M3 10l4 4",end:"M18 6L6 18 M6 6l12 12",swap:"M7 16V4m0 0L3 8m4-4l4 4 M17 8v12m0 0l4-4m-4 4l-4-4",check:"M20 6L9 17l-5-5",sound_on:"M11 5L6 9H2v6h4l5 4V5z M15.54 8.46a5 5 0 0 1 0 7.07 M19.07 4.93a10 10 0 0 1 0 14.14",sound_off:"M11 5L6 9H2v6h4l5 4V5z M23 9l-6 6 M17 9l6 6",edit:"M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z",share:"M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8 M16 6l-4-4-4 4 M12 2v13",skip_prev:"M6 6h2v12H6z M20 6l-10 6 10 6z",skip_next:"M16 6h2v12h-2z M4 6l10 6-10 6z",pause:"M6 4h4v16H6z M14 4h4v16h-4z",wifi:"M5 12.55a11 11 0 0 1 14.08 0 M8.53 16.11a6 6 0 0 1 6.95 0 M12 20h.01"};
+  const { useState, useEffect, useCallback, useRef } = React;
+  const PTS = ["0", "15", "30", "40"];
 
-/* MEDIA SESSION */
-const WR={ctx:null,audio:null,active:false,onPrev:null,onNext:null,onPause:null,
-activate(n1,n2){if(this.active)return true;try{const AC=window.AudioContext||window.webkitAudioContext;this.ctx=new AC();const o=this.ctx.createOscillator();o.frequency.value=1;const g=this.ctx.createGain();g.gain.value=.001;const d=this.ctx.createMediaStreamDestination();o.connect(g);g.connect(d);g.connect(this.ctx.destination);o.start();this.audio=new Audio();this.audio.srcObject=d.stream;this.audio.loop=true;this.audio.play();this._o=o}catch{return false}if('mediaSession'in navigator){navigator.mediaSession.metadata=new MediaMetadata({title:'🎾 Match',artist:`${n1} vs ${n2}`,album:'Tennis Score'});navigator.mediaSession.setActionHandler('previoustrack',()=>this.onPrev?.());navigator.mediaSession.setActionHandler('nexttrack',()=>this.onNext?.());navigator.mediaSession.setActionHandler('pause',()=>{this.onPause?.();setTimeout(()=>{this.audio?.play().catch(()=>{});navigator.mediaSession.playbackState='playing'},150)});navigator.mediaSession.setActionHandler('play',()=>{this.audio?.play().catch(()=>{});navigator.mediaSession.playbackState='playing'});navigator.mediaSession.playbackState='playing'}this.active=true;return true},
-update(t,n1,n2){if('mediaSession'in navigator)navigator.mediaSession.metadata=new MediaMetadata({title:'🎾 '+t,artist:`${n1} vs ${n2}`,album:'Tennis Score'})},
-stop(){try{this._o?.stop();this.ctx?.close()}catch{}this.audio?.pause();this.audio=null;this.ctx=null;if('mediaSession'in navigator)['previoustrack','nexttrack','pause','play'].forEach(a=>navigator.mediaSession.setActionHandler(a,null));this.active=false}};
+  /* ─── Helpers ─── */
+  function speak(text) {}
 
-/* LIVE SYNC */
-const LS={peer:null,conns:[],roomId:null,
-genId(){return'ts'+Math.random().toString(36).slice(2,8)},
-host(cb){if(this.peer)return;this.roomId=this.genId();try{this.peer=new Peer(this.roomId);this.peer.on('open',()=>cb?.(this.roomId));this.peer.on('connection',c=>{this.conns.push(c);c.on('close',()=>{this.conns=this.conns.filter(x=>x!==c)})});this.peer.on('error',()=>{})}catch{}},
-send(d){this.conns.forEach(c=>{try{c.send(d)}catch{}})},
-join(id,onData,onOk,onErr){try{this.peer=new Peer();this.peer.on('open',()=>{const c=this.peer.connect(id,{reliable:true});c.on('open',()=>onOk?.());c.on('data',d=>onData?.(d));c.on('close',()=>onErr?.('closed'))});this.peer.on('error',e=>onErr?.(e.type))}catch{onErr?.('fail')}},
-destroy(){try{this.peer?.destroy()}catch{}this.peer=null;this.conns=[];this.roomId=null}};
+  function vibrate(pattern = 25) {
+    try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {}
+  }
 
-/* TENNIS ENGINE */
-const vib=p=>{try{navigator.vibrate?.(p)}catch{}};
-const fmt=ms=>{const s=Math.floor(ms/1000);return Math.floor(s/60)+":"+(s%60).toString().padStart(2,"0")};
-const clone=o=>JSON.parse(JSON.stringify(o));
-function fresh(sv,cfg){return{p1:0,p2:0,g1:0,g2:0,s1:0,s2:0,sets:[],t1:0,t2:0,tb:false,tb1:0,tb2:0,mtb:false,mtb1:0,mtb2:0,deuce:false,adv:false,advP:null,over:false,winner:null,server:sv,pn:0,cfg}}
-function wg(s,p){const SL=s.cfg.setLen;if(p===1)s.g1++;else s.g2++;s.p1=0;s.p2=0;s.deuce=false;s.adv=false;s.advP=null;s.tb1=0;s.tb2=0;s.tb=false;s.server=s.server===1?2:1;if(s.g1>=SL&&s.g1-s.g2>=2)return wst(s,1);if(s.g2>=SL&&s.g2-s.g1>=2)return wst(s,2);if(s.g1===SL&&s.g2===SL)s.tb=true;return s}
-function wst(s,p){s.sets.push({a:s.g1,b:s.g2});if(p===1)s.s1++;else s.s2++;s.g1=0;s.g2=0;if(s.s1>=2){s.over=true;s.winner=1;return s}if(s.s2>=2){s.over=true;s.winner=2;return s}if(s.cfg.matchTB&&s.s1===1&&s.s2===1)s.mtb=true;return s}
-function pt(prev,p){const s=clone(prev);if(s.over)return s;s.pn++;if(p===1)s.t1++;else s.t2++;if(s.mtb){if(p===1)s.mtb1++;else s.mtb2++;s.p1=s.mtb1;s.p2=s.mtb2;if((s.mtb1+s.mtb2)%2===1)s.server=s.server===1?2:1;if(s.mtb1>=10&&s.mtb1-s.mtb2>=2){s.sets.push({a:s.mtb1,b:s.mtb2,mtb:true});s.over=true;s.winner=1}if(s.mtb2>=10&&s.mtb2-s.mtb1>=2){s.sets.push({a:s.mtb1,b:s.mtb2,mtb:true});s.over=true;s.winner=2}return s}if(s.tb){if(p===1)s.tb1++;else s.tb2++;s.p1=s.tb1;s.p2=s.tb2;if((s.tb1+s.tb2)%2===1)s.server=s.server===1?2:1;if(s.tb1>=7&&s.tb1-s.tb2>=2)return wg(s,1);if(s.tb2>=7&&s.tb2-s.tb1>=2)return wg(s,2);return s}if(s.cfg.noAd&&s.p1>=3&&s.p2>=3)return wg(s,p);if(s.p1>=3&&s.p2>=3){if(s.adv){if(s.advP===p)return wg(s,p);s.adv=false;s.advP=null;s.deuce=true;return s}if(s.deuce||(s.p1===3&&s.p2===3)){s.deuce=false;s.adv=true;s.advP=p;return s}}if(p===1)s.p1++;else s.p2++;if(s.p1>=4)return wg(s,1);if(s.p2>=4)return wg(s,2);if(s.p1===3&&s.p2===3)s.deuce=true;return s}
-function gp(m,p){if(m.mtb)return p===1?String(m.mtb1):String(m.mtb2);if(m.tb)return p===1?String(m.tb1):String(m.tb2);if(m.deuce)return"40";if(m.adv)return m.advP===p?"AD":"40";const v=p===1?m.p1:m.p2;return PTS[v]||String(v)}
-function scoreText(m,n1,n2){if(m.over)return(m.winner===1?n1:n2)+" wins!";if(m.mtb)return m.server===1?`${m.mtb1}\u2013${m.mtb2}`:`${m.mtb2}\u2013${m.mtb1}`;if(m.tb)return m.server===1?`${m.tb1}\u2013${m.tb2}`:`${m.tb2}\u2013${m.tb1}`;if(m.deuce)return"Deuce";if(m.adv)return`AD ${m.advP===1?n1:n2}`;const a=PTS[m.p1],b=PTS[m.p2];return m.server===1?`${a}\u2013${b}`:`${b}\u2013${a}`}
-function chkSw(m){if(m.over)return false;if(m.mtb){const x=m.mtb1+m.mtb2;return x>0&&x%6===0}if(m.tb){const x=m.tb1+m.tb2;return x>0&&x%6===0}const g=m.g1+m.g2;return g>0&&g%2!==0&&m.p1===0&&m.p2===0}
+  function fmtTime(ms) {
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+  }
 
-/* UMPIRE */
-const Ump={on:true,say(t,d=0){if(!this.on||!('speechSynthesis'in window))return;setTimeout(()=>{const u=new SpeechSynthesisUtterance(t);u.lang='en-US';u.rate=.78;u.pitch=.85;const v=speechSynthesis.getVoices();const p=v.find(x=>x.name.includes('Samantha')||x.name.includes('Daniel')||x.name.includes('Karen'))||v.find(x=>x.lang.startsWith('en')&&!x.name.includes('Google'))||v.find(x=>x.lang.startsWith('en'));if(p)u.voice=p;speechSynthesis.cancel();speechSynthesis.speak(u)},d)},ann(prev,next,n1,n2){if(!this.on)return;if(next.over&&!prev.over){this.say(`Game, set, match. ${next.winner===1?n1:n2}`);return}if(next.mtb){if(!prev.mtb){this.say("One set all. Match tiebreak");return}const t=`${next.mtb1}, ${next.mtb2}`;this.say(chkSw(next)?t+". Change ends":t);return}if(next.sets.length>prev.sets.length){const ls=next.sets.at(-1);this.say(`Game and set, ${ls.a>ls.b?n1:n2}. ${ls.a}, ${ls.b}`);return}const pg=prev.g1+prev.g2,ng=next.g1+next.g2;if(ng>pg||(pg>0&&ng===0&&next.sets.length===prev.sets.length)){if(next.tb&&!prev.tb){this.say(`${next.cfg.setLen} all. Tiebreak`);return}this.say(`Game. ${next.g1}, ${next.g2}`);if(chkSw(next))this.say("Change ends",2000);return}if(next.tb){const t=`${next.tb1}, ${next.tb2}`;this.say(chkSw(next)?t+". Change ends":t);return}if(next.deuce){this.say("Deuce");return}if(next.adv){this.say(`Advantage, ${next.advP===1?n1:n2}`);return}const a=PTS[next.p1],b=PTS[next.p2];if(a===b&&a!=="0")this.say(`${a} all`);else if(next.server===1)this.say(`${a}. ${b}`);else this.say(`${b}. ${a}`)}};
+  function genId(len = 8) {
+    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    let id = "";
+    for (let i = 0; i < len; i++) id += chars[Math.floor(Math.random() * chars.length)];
+    return id;
+  }
 
-function fmtMsg(m,p1,p2,el){let l=[`🎾 ${p1} vs ${p2}`];if(m.sets?.length>0)l.push(m.sets.map(s=>s.mtb?`TB:${s.a}\u2013${s.b}`:`${s.a}\u2013${s.b}`).join('  '));if(m.over)l.push(`🏆 ${m.winner===1?p1:p2} wins!`);else{l.push(`Set ${m.sets.length+1}: ${m.g1}\u2013${m.g2}`);if(m.deuce)l.push('Deuce');else if(m.adv)l.push(`AD ${m.advP===1?p1:p2}`);else l.push(`Points: ${scoreText(m,p1,p2)}`);l.push(`${m.server===1?p1:p2} serving`)}l.push(`⏱ ${fmt(el)}`);return l.join('\n')}
+  /* ─── Tennis Logic ─── */
+  function freshMatch(server) {
+    return {
+      p1: 0, p2: 0,
+      g1: 0, g2: 0,
+      s1: 0, s2: 0,
+      sets: [],
+      total1: 0, total2: 0,
+      tb: false, tb1: 0, tb2: 0,
+      deuce: false, adv: false, advP: null,
+      over: false, winner: null,
+      server,
+      pointNum: 0,
+    };
+  }
 
-/* UI ATOMS */
-function Badge({children,color=L,bg="rgba(200,255,0,.08)",style={}}){return<span style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:20,background:bg,color,fontSize:10,fontWeight:600,fontFamily:"var(--mono)",letterSpacing:1,...style}}>{children}</span>}
-function Seg({options,value,onChange}){return<div style={{display:"flex",background:"var(--card)",borderRadius:10,padding:3,gap:2}}>{options.map(o=>{const s=o.v===value;return<button key={String(o.v)} onClick={()=>onChange(o.v)} style={{flex:1,padding:"8px 0",borderRadius:8,background:s?"rgba(200,255,0,.12)":"transparent",color:s?L:"var(--text3)",fontSize:13,fontWeight:s?700:500,border:s?"1px solid rgba(200,255,0,.2)":"1px solid transparent"}}>{o.l}</button>})}</div>}
-function Sheet({onClose,ch}){return<div onClick={onClose} style={{position:"fixed",inset:0,zIndex:100,background:"rgba(0,0,0,.7)",display:"flex",alignItems:"flex-end",justifyContent:"center",animation:"fadeOverlay .2s ease"}}><div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:400,background:"var(--card2)",borderRadius:"20px 20px 0 0",padding:"20px 24px 32px",maxHeight:"75vh",overflow:"auto",animation:"fadeIn .3s ease"}}><div style={{width:36,height:4,borderRadius:2,background:"var(--border)",margin:"0 auto 16px"}}/>{ch}</div></div>}
-function NB({v,sel,onClick}){return<button onClick={onClick} style={{minWidth:36,height:34,borderRadius:8,background:sel?"rgba(200,255,0,.15)":"var(--card)",border:sel?`1.5px solid ${L}`:"1.5px solid var(--border)",color:sel?L:"var(--text2)",fontSize:13,fontWeight:700,fontFamily:"var(--mono)",padding:"0 4px"}}>{v}</button>}
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
-/* HELP */
-function HelpSheet({onClose}){return<Sheet onClose={onClose} ch={<><h3 style={{fontSize:16,fontWeight:800,marginBottom:16}}>Scoring Formats</h3><div style={{fontSize:13,color:"var(--text2)",lineHeight:1.9}}><div style={{marginBottom:16}}><div style={{color:L,fontWeight:700,marginBottom:4}}>Set Length</div><div><b style={{color:"var(--text)"}}>6</b> — Standard. TB at 6-6.</div><div><b style={{color:"var(--text)"}}>4</b> — Short set.</div><div><b style={{color:"var(--text)"}}>8</b> — Pro set.</div></div><div style={{marginBottom:16}}><div style={{color:L,fontWeight:700,marginBottom:4}}>Deuce</div><div><b style={{color:"var(--text)"}}>Advantage</b> — Win by 2.</div><div><b style={{color:"var(--text)"}}>No-Ad</b> — Deciding point at 40-40.</div></div><div><div style={{color:L,fontWeight:700,marginBottom:4}}>Final Set</div><div><b style={{color:"var(--text)"}}>Normal</b> — Regular 3rd set.</div><div><b style={{color:"var(--text)"}}>Match TB</b> — TB to 10.</div></div></div><button onClick={onClose} style={{width:"100%",marginTop:20,padding:14,borderRadius:12,background:"rgba(255,255,255,.06)",color:"var(--text2)",fontWeight:700}}>Got it</button></>}/>}
+  function winGame(s, p) {
+    if (p === 1) s.g1++; else s.g2++;
+    s.p1 = 0; s.p2 = 0;
+    s.deuce = false; s.adv = false; s.advP = null;
+    s.tb1 = 0; s.tb2 = 0; s.tb = false;
+    s.server = s.server === 1 ? 2 : 1;
+    
+    if (s.g1 >= 6 && s.g1 - s.g2 >= 2) return winSet(s, 1);
+    if (s.g2 >= 6 && s.g2 - s.g1 >= 2) return winSet(s, 2);
+    if (s.g1 === 6 && s.g2 === 6) s.tb = true;
+    return s;
+  }
 
-/* EDIT (redesigned: table layout) */
-function EditSheet({m,p1,p2,onApply,onClose}){
-  const[s1,ss1]=useState(m.s1);const[s2,ss2]=useState(m.s2);
-  const[g1,sg1]=useState(m.g1);const[g2,sg2]=useState(m.g2);
-  const[sv,ssv]=useState(m.server);
-  const apply=()=>{const n=clone(m);n.s1=s1;n.s2=s2;n.g1=g1;n.g2=g2;n.server=sv;n.p1=0;n.p2=0;n.deuce=false;n.adv=false;n.advP=null;n.tb=false;n.tb1=0;n.tb2=0;n.mtb=false;n.mtb1=0;n.mtb2=0;if(g1===n.cfg.setLen&&g2===n.cfg.setLen)n.tb=true;if(n.cfg.matchTB&&s1===1&&s2===1&&g1===0&&g2===0)n.mtb=true;onApply(n);onClose()};
-  return<Sheet onClose={onClose} ch={<>
-    <h3 style={{fontSize:16,fontWeight:800,marginBottom:16}}>Edit Score</h3>
-    <div style={{display:"grid",gridTemplateColumns:"72px 1fr 1fr",gap:8,marginBottom:6}}>
-      <div/><div style={{textAlign:"center",fontSize:13,fontWeight:700,color:L}}>{p1}</div><div style={{textAlign:"center",fontSize:13,fontWeight:700,color:L}}>{p2}</div>
-    </div>
-    <div style={{display:"grid",gridTemplateColumns:"72px 1fr 1fr",gap:8,marginBottom:10,alignItems:"center"}}>
-      <div style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:1}}>SETS</div>
-      <div style={{display:"flex",gap:4,justifyContent:"center"}}>{[0,1].map(n=><NB key={n} v={n} sel={s1===n} onClick={()=>ss1(n)}/>)}</div>
-      <div style={{display:"flex",gap:4,justifyContent:"center"}}>{[0,1].map(n=><NB key={n} v={n} sel={s2===n} onClick={()=>ss2(n)}/>)}</div>
-    </div>
-    <div style={{display:"grid",gridTemplateColumns:"72px 1fr 1fr",gap:8,marginBottom:14,alignItems:"center"}}>
-      <div style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:1}}>GAMES</div>
-      <div style={{display:"flex",gap:3,justifyContent:"center",flexWrap:"wrap"}}>{[0,1,2,3,4,5,6,7].map(n=><NB key={n} v={n} sel={g1===n} onClick={()=>sg1(n)}/>)}</div>
-      <div style={{display:"flex",gap:3,justifyContent:"center",flexWrap:"wrap"}}>{[0,1,2,3,4,5,6,7].map(n=><NB key={n} v={n} sel={g2===n} onClick={()=>sg2(n)}/>)}</div>
-    </div>
-    <div style={{marginBottom:14}}><div style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:1,marginBottom:6}}>SERVING</div><Seg options={[{v:1,l:p1},{v:2,l:p2}]} value={sv} onChange={ssv}/></div>
-    <p style={{fontSize:11,color:"var(--text3)",marginBottom:14}}>Points reset to 0–0 from this score.</p>
-    <div style={{display:"flex",gap:8}}><button onClick={onClose} style={{flex:1,padding:14,borderRadius:12,background:"var(--card)",color:"var(--text2)",fontWeight:700}}>Cancel</button><button onClick={apply} style={{flex:1,padding:14,borderRadius:12,background:L,color:BG,fontWeight:800}}>Apply</button></div>
-  </>}/>;
-}
+  function winSet(s, p) {
+    s.sets.push({ a: s.g1, b: s.g2 });
+    if (p === 1) s.s1++; else s.s2++;
+    s.g1 = 0; s.g2 = 0;
+    if (s.s1 >= 2) { s.over = true; s.winner = 1; }
+    if (s.s2 >= 2) { s.over = true; s.winner = 2; }
+    return s;
+  }
 
-/* SHARE (live link + text) */
-function ShareSheet({m,p1,p2,el,roomId,onClose}){
-  const[cp,setCp]=useState(false);
-  const msg=fmtMsg(m,p1,p2,el);
-  const liveUrl=roomId?window.location.origin+window.location.pathname+'?join='+roomId:null;
-  const shareText=async()=>{if(navigator.share){try{await navigator.share({text:msg});onClose();return}catch{}}try{await navigator.clipboard.writeText(msg);setCp(true);setTimeout(()=>{setCp(false);onClose()},1500)}catch{}};
-  const shareLive=async()=>{const t=`🎾 Watch live:\n${liveUrl}`;if(navigator.share){try{await navigator.share({text:t});return}catch{}}try{await navigator.clipboard.writeText(liveUrl);setCp(true);setTimeout(()=>setCp(false),1500)}catch{}};
-  return<Sheet onClose={onClose} ch={<>
-    <h3 style={{fontSize:16,fontWeight:800,marginBottom:6}}>Share Score</h3>
-    {liveUrl&&<div style={{background:"rgba(200,255,0,.05)",border:"1px solid rgba(200,255,0,.15)",borderRadius:12,padding:14,marginBottom:14}}>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}><span style={{width:6,height:6,borderRadius:3,background:L,animation:"pulse 1.5s infinite"}}/><span style={{fontSize:12,fontWeight:700,color:L}}>Live Scoreboard</span></div>
-      <p style={{fontSize:11,color:"var(--text3)",marginBottom:10,lineHeight:1.6}}>Opponent opens this link — sees live score on phone, watch, and headphones.</p>
-      <div style={{background:"var(--card)",borderRadius:8,padding:"8px 12px",fontSize:11,color:"var(--text2)",fontFamily:"var(--mono)",wordBreak:"break-all",marginBottom:10}}>{liveUrl}</div>
-      <button onClick={shareLive} style={{width:"100%",padding:12,borderRadius:10,background:L,color:BG,fontWeight:800,fontSize:13}}>{cp?"Copied!":"Share Live Link"}</button>
-    </div>}
-    <div style={{background:"var(--card)",borderRadius:12,padding:14,marginBottom:14,fontFamily:"var(--mono)",fontSize:12,color:"var(--text2)",lineHeight:1.7,whiteSpace:"pre-line"}}>{msg}</div>
-    <button onClick={shareText} style={{width:"100%",padding:12,borderRadius:10,background:"var(--card)",border:"1px solid var(--border)",color:"var(--text2)",fontWeight:700,fontSize:13}}>{cp?"Copied!":(navigator.share?"Share as Text":"Copy Text")}</button>
-  </>}/>;
-}
+  function point(prev, p) {
+    const s = clone(prev);
+    if (s.over) return s;
+    s.pointNum++;
+    if (p === 1) s.total1++; else s.total2++;
 
-/* SPECTATOR VIEW */
-function SpectatorView(){
-  const roomId=new URLSearchParams(window.location.search).get('join');
-  const[st,setSt]=useState('connecting');
-  const[data,setData]=useState(null);
-  const[soundOn,setSoundOn]=useState(false);
-  const[watchOn,setWatchOn]=useState(false);
-  useEffect(()=>{LS.join(roomId,d=>{setSt('live');setData(prev=>{if(prev&&d.m&&prev.m&&Ump.on)Ump.ann(prev.m,d.m,d.n1,d.n2);if(WR.active&&d.m)WR.update(scoreText(d.m,d.n1,d.n2),d.n1,d.n2);return d})},()=>setSt('live'),()=>setSt('error'));return()=>LS.destroy()},[roomId]);
-  useEffect(()=>{Ump.on=soundOn;if(!soundOn)speechSynthesis?.cancel()},[soundOn]);
-  const actWatch=()=>{if(!data)return;setWatchOn(WR.activate(data.n1,data.n2))};
+    if (s.tb) {
+      if (p === 1) s.tb1++; else s.tb2++;
+      s.p1 = s.tb1; s.p2 = s.tb2;
+      if ((s.tb1 + s.tb2) % 2 === 1) s.server = s.server === 1 ? 2 : 1;
+      if (s.tb1 >= 7 && s.tb1 - s.tb2 >= 2) return winGame(s, 1);
+      if (s.tb2 >= 7 && s.tb2 - s.tb1 >= 2) return winGame(s, 2);
+      return s;
+    }
 
-  if(st==='connecting')return<div style={{fontFamily:"var(--font)",height:"100%",background:"var(--bg)",color:"var(--text)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}><div style={{width:32,height:32,border:"3px solid var(--border)",borderTopColor:L,borderRadius:"50%",animation:"spin .7s linear infinite"}}/><p style={{color:"var(--text3)",fontSize:14}}>Connecting...</p><p style={{color:"var(--text3)",fontSize:11,fontFamily:"var(--mono)"}}>Room: {roomId}</p></div>;
-  if(st==='error'||!data)return<div style={{fontFamily:"var(--font)",height:"100%",background:"var(--bg)",color:"var(--text)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,padding:24}}><span style={{fontSize:40}}>📡</span><h2 style={{fontSize:18,fontWeight:800}}>Cannot Connect</h2><p style={{color:"var(--text3)",fontSize:13,textAlign:"center"}}>Match not found. Ask scorer for a new link.</p><button onClick={()=>window.location.href=window.location.pathname} style={{marginTop:12,padding:"14px 32px",borderRadius:12,background:L,color:BG,fontWeight:800}}>Open Scorer</button></div>;
+    if (s.p1 >= 3 && s.p2 >= 3) {
+      if (s.adv) {
+        if (s.advP === p) return winGame(s, p);
+        s.adv = false; s.advP = null; s.deuce = true;
+        return s;
+      }
+      if (s.deuce || (s.p1 === 3 && s.p2 === 3)) {
+        s.deuce = false; s.adv = true; s.advP = p;
+        return s;
+      }
+    }
 
-  const{m,n1,n2,el}=data;
-  return<div style={{fontFamily:"var(--font)",height:"100%",background:"var(--bg)",color:"var(--text)",display:"flex",flexDirection:"column"}}>
-    <div style={{display:"flex",alignItems:"center",padding:"10px 16px",gap:8,borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-      <Badge color={L} bg="rgba(200,255,0,.06)"><span style={{width:5,height:5,borderRadius:3,background:L,animation:"pulse 1.5s infinite"}}/>LIVE</Badge>
-      <span style={{flex:1}}/>
-      <button onClick={()=>setSoundOn(x=>!x)} style={{width:34,height:34,borderRadius:17,background:soundOn?"rgba(200,255,0,.1)":"var(--card)",border:`1px solid ${soundOn?"rgba(200,255,0,.2)":"var(--border)"}`,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon d={soundOn?I.sound_on:I.sound_off} size={14} color={soundOn?L:"var(--text3)"}/></button>
-      {!watchOn?<button onClick={actWatch} style={{padding:"6px 12px",borderRadius:17,background:"var(--card)",border:"1px solid var(--border)",fontSize:10,color:"var(--text3)",fontWeight:600}}>⌚ Watch</button>:<Badge color={L} bg="rgba(200,255,0,.06)">⌚</Badge>}
-    </div>
-    <div style={{padding:"8px 16px",textAlign:"center"}}>
-      <div style={{color:m.mtb?L:m.tb?L:m.deuce?"#FF9F0A":"var(--text3)",fontSize:11,fontFamily:"var(--mono)",fontWeight:600}}>{m.mtb?"MATCH TIEBREAK":m.tb?"TIEBREAK":m.deuce?"DEUCE":m.adv?"ADVANTAGE":m.over?"FINAL":`SET ${(m.sets?.length||0)+1}`}</div>
-      {!m.over&&<div style={{color:L,fontSize:16,fontWeight:800,fontFamily:"var(--mono)",marginTop:2}}>{scoreText(m,n1,n2)}</div>}
-      {!m.over&&<div style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",marginTop:2}}>{m.server===1?n1:n2} serving</div>}
-    </div>
-    {m.sets?.length>0&&<div style={{display:"flex",justifyContent:"center",gap:12,padding:"4px 16px 8px"}}>{m.sets.map((s,i)=><div key={i} style={{background:"var(--card)",borderRadius:8,padding:"4px 12px",display:"flex",gap:6,alignItems:"center"}}>{s.mtb&&<span style={{fontSize:8,color:L,fontFamily:"var(--mono)"}}>TB</span>}<span style={{fontSize:13,fontWeight:700,color:s.a>s.b?L:"var(--text3)",fontFamily:"var(--mono)"}}>{s.a}</span><span style={{fontSize:10,color:"var(--border)"}}>–</span><span style={{fontSize:13,fontWeight:700,color:s.b>s.a?L:"var(--text3)",fontFamily:"var(--mono)"}}>{s.b}</span></div>)}</div>}
-    <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",padding:"0 12px"}}>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        {[1,2].map(pl=>{const srv=m.server===pl,pts=gp(m,pl);return<div key={pl} style={{background:"var(--card)",borderRadius:22,padding:"22px 16px 20px",textAlign:"center",position:"relative",border:srv?`1.5px solid rgba(200,255,0,.35)`:"1.5px solid var(--border)"}}>
-          {srv&&<div style={{position:"absolute",top:12,right:14,width:7,height:7,borderRadius:"50%",background:L,boxShadow:`0 0 8px ${L}`}}/>}
-          <div style={{color:"var(--text2)",fontWeight:700,fontSize:14,marginBottom:12}}>{pl===1?n1:n2}</div>
-          <div style={{display:"flex",justifyContent:"center",gap:20,marginBottom:14}}>
-            <div><div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:3}}>SETS</div><div style={{fontSize:20,fontWeight:800}}>{pl===1?m.s1:m.s2}</div></div>
-            <div style={{width:1,background:"var(--border)"}}/>
-            <div><div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:3}}>{m.mtb?"MTB":"GAMES"}</div><div style={{fontSize:20,fontWeight:800}}>{m.mtb?(pl===1?m.mtb1:m.mtb2):(pl===1?m.g1:m.g2)}</div></div>
+    if (p === 1) s.p1++; else s.p2++;
+    if (s.p1 >= 4 && s.p1 - s.p2 >= 2) return winGame(s, 1);
+    if (s.p2 >= 4 && s.p2 - s.p1 >= 2) return winGame(s, 2);
+    if (s.p1 >= 4) return winGame(s, 1);
+    if (s.p2 >= 4) return winGame(s, 2);
+    
+    if (s.p1 === 3 && s.p2 === 3) s.deuce = true;
+    return s;
+  }
+
+  function getPts(m, p) {
+    if (m.tb) return p === 1 ? String(m.tb1) : String(m.tb2);
+    if (m.deuce) return "40";
+    if (m.adv) return m.advP === p ? "AD" : "40";
+    const v = p === 1 ? m.p1 : m.p2;
+    return PTS[v] || String(v);
+  }
+
+  function checkSwitchSides(m) {
+    if (m.over) return false;
+    if (m.tb) {
+      const sum = m.tb1 + m.tb2;
+      return sum > 0 && sum % 6 === 0;
+    }
+    const gamesSum = m.g1 + m.g2;
+    return gamesSum > 0 && gamesSum % 2 !== 0 && m.p1 === 0 && m.p2 === 0;
+  }
+
+  /* ─── P2P Host ─── */
+  function usePeerHost() {
+    const peerRef = useRef(null);
+    const connsRef = useRef([]);
+    const [peerId, setPeerId] = useState(null);
+    const [peerReady, setPeerReady] = useState(false);
+    const [viewerCount, setViewerCount] = useState(0);
+    const lastStateRef = useRef(null);
+
+    useEffect(() => {
+      const id = "ts_" + genId(10);
+      
+      let peer;
+      try {
+        peer = new Peer(id, {
+          debug: 0,
+          config: {
+            iceServers: [
+              { urls: "stun:stun.l.google.com:19302" },
+              { urls: "stun:stun1.l.google.com:19302" },
+              { urls: "stun:stun2.l.google.com:19302" },
+              { urls: "stun:stun3.l.google.com:19302" },
+              { urls: "stun:stun4.l.google.com:19302" },
+            ]
+          }
+        });
+      } catch(e) {
+        console.error("[Host] Failed to create Peer:", e);
+        return;
+      }
+
+      peer.on("open", (openId) => {
+        console.log("[Host] Peer open:", openId);
+        setPeerId(openId);
+        setPeerReady(true);
+      });
+
+      peer.on("connection", (conn) => {
+        console.log("[Host] Viewer connected");
+        conn.on("open", () => {
+          connsRef.current = [...connsRef.current, conn];
+          setViewerCount(connsRef.current.length);
+          // Send current state immediately to new viewer
+          if (lastStateRef.current) {
+            try { conn.send(lastStateRef.current); } catch(e) {}
+          }
+        });
+        conn.on("close", () => {
+          connsRef.current = connsRef.current.filter(c => c !== conn);
+          setViewerCount(connsRef.current.length);
+        });
+        conn.on("error", () => {
+          connsRef.current = connsRef.current.filter(c => c !== conn);
+          setViewerCount(connsRef.current.length);
+        });
+      });
+
+      peer.on("error", (err) => {
+        console.error("[Host] Peer error:", err.type);
+        if (err.type === "disconnected" || err.type === "network") {
+          setTimeout(() => { try { peer.reconnect(); } catch(e) {} }, 3000);
+        }
+      });
+
+      peer.on("disconnected", () => {
+        console.log("[Host] Disconnected, reconnecting...");
+        setTimeout(() => { try { peer.reconnect(); } catch(e) {} }, 2000);
+      });
+
+      peerRef.current = peer;
+
+      return () => {
+        connsRef.current.forEach(c => { try { c.close(); } catch(e) {} });
+        try { peer.destroy(); } catch(e) {}
+      };
+    }, []);
+
+    const broadcast = useCallback((data) => {
+      lastStateRef.current = data;
+      const dead = [];
+      connsRef.current.forEach(conn => {
+        try {
+          if (conn.open) conn.send(data);
+          else dead.push(conn);
+        } catch(e) { dead.push(conn); }
+      });
+      if (dead.length) {
+        connsRef.current = connsRef.current.filter(c => !dead.includes(c));
+        setViewerCount(connsRef.current.length);
+      }
+    }, []);
+
+    return { peerId, peerReady, broadcast, viewerCount };
+  }
+
+  /* ─── P2P Viewer ─── */
+  function usePeerViewer(hostId) {
+    const [state, setState] = useState(null);
+    const [status, setStatus] = useState("connecting");
+    const destroyedRef = useRef(false);
+    const retriesRef = useRef(0);
+    const maxRetries = 20;
+
+    useEffect(() => {
+      if (!hostId) { setStatus("error"); return; }
+      destroyedRef.current = false;
+
+      let currentPeer = null;
+
+      function connect() {
+        if (destroyedRef.current) return;
+        
+        const myId = "tv_" + genId(12);
+        let peer;
+        try {
+          peer = new Peer(myId, {
+            debug: 0,
+            config: {
+              iceServers: [
+                { urls: "stun:stun.l.google.com:19302" },
+                { urls: "stun:stun1.l.google.com:19302" },
+                { urls: "stun:stun2.l.google.com:19302" },
+              ]
+            }
+          });
+        } catch(e) {
+          console.error("[Viewer] Failed to create peer:", e);
+          setStatus("error");
+          return;
+        }
+        
+        currentPeer = peer;
+
+        peer.on("open", () => {
+          if (destroyedRef.current) { peer.destroy(); return; }
+          console.log("[Viewer] My peer open, connecting to host:", hostId);
+          setStatus("connecting");
+          
+          const conn = peer.connect(hostId, { 
+            reliable: true,
+            serialization: "json"
+          });
+
+          const connTimeout = setTimeout(() => {
+            console.log("[Viewer] Connection timeout");
+            if (!destroyedRef.current) retry(peer);
+          }, 15000);
+
+          conn.on("open", () => {
+            clearTimeout(connTimeout);
+            console.log("[Viewer] Connected!");
+            setStatus("connected");
+            retriesRef.current = 0;
+          });
+
+          conn.on("data", (data) => {
+            setState(data);
+            setStatus("connected");
+          });
+
+          conn.on("close", () => {
+            clearTimeout(connTimeout);
+            console.log("[Viewer] Connection closed");
+            if (!destroyedRef.current) {
+              setStatus("connecting");
+              retry(peer);
+            }
+          });
+
+          conn.on("error", (err) => {
+            clearTimeout(connTimeout);
+            console.error("[Viewer] Conn error:", err);
+            if (!destroyedRef.current) retry(peer);
+          });
+        });
+
+        peer.on("error", (err) => {
+          console.error("[Viewer] Peer error:", err.type);
+          if (!destroyedRef.current) {
+            if (err.type === "peer-unavailable") {
+              setStatus("error");
+            }
+            retry(peer);
+          }
+        });
+
+        peer.on("disconnected", () => {
+          if (!destroyedRef.current) retry(peer);
+        });
+      }
+
+      function retry(oldPeer) {
+        retriesRef.current++;
+        if (retriesRef.current > maxRetries) {
+          setStatus("error");
+          return;
+        }
+        const delay = Math.min(1500 + 1000 * retriesRef.current, 10000);
+        console.log(`[Viewer] Retry ${retriesRef.current}/${maxRetries} in ${delay}ms`);
+        setTimeout(() => {
+          try { oldPeer.destroy(); } catch(e) {}
+          if (!destroyedRef.current) connect();
+        }, delay);
+      }
+
+      connect();
+
+      return () => {
+        destroyedRef.current = true;
+        try { currentPeer?.destroy(); } catch(e) {}
+      };
+    }, [hostId]);
+
+    return { state, status };
+  }
+
+  /* ─── Components ─── */
+
+  function CoinToss({ p1, p2, onResult }) {
+    const [phase, setPhase] = useState("idle");
+    const [result, setResult] = useState(null);
+
+    const toss = () => {
+      vibrate(40);
+      setPhase("spinning");
+      const winner = Math.random() < 0.5 ? 1 : 2;
+      setTimeout(() => {
+        setResult(winner);
+        setPhase("done");
+        vibrate([20, 60, 20]);
+      }, 1500);
+    };
+
+    return (
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", gap: 24, animation: "fadeUp 0.4s ease",
+        padding: "0 20px", width: "100%", height: "100%"
+      }}>
+        <div style={{
+          width: 120, height: 120, borderRadius: "50%",
+          background: phase === "spinning"
+            ? "conic-gradient(#C8FF00, #0a0f0a, #C8FF00, #0a0f0a, #C8FF00)"
+            : result ? "linear-gradient(135deg, #C8FF00, #8BA600)" : "#1a1f1a",
+          border: `3px solid ${result ? "#C8FF00" : "#333"}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          animation: phase === "spinning" ? `spin 0.3s linear infinite` : "none",
+        }} onClick={phase === "idle" ? toss : undefined}>
+          <span style={{ fontSize: 36 }}>🎾</span>
+        </div>
+        
+        {phase === "idle" && <p style={{color: "#888"}}>Tap to toss</p>}
+        {phase === "spinning" && <p style={{color: "#888"}}>Tossing...</p>}
+        
+        {phase === "done" && (
+          <div style={{ textAlign: "center", marginTop: -10 }}>
+            <p style={{color: "#C8FF00", fontWeight: "bold"}}>{result === 1 ? p1 : p2} serves!</p>
+            <button onClick={() => onResult(result)} style={{
+               marginTop: 20, padding: "12px 30px", background: "#333", 
+               color: "#fff", borderRadius: 8, fontWeight: "bold"
+            }}>Start Match</button>
           </div>
-          <div style={{fontSize:72,fontWeight:900,lineHeight:1,color:pts==="AD"?L:"var(--text)"}}>{pts}</div>
-          {srv&&<div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",marginTop:10,letterSpacing:2}}>SERVING</div>}
-        </div>})}
+        )}
       </div>
-      {m.over&&<div style={{textAlign:"center",marginTop:20}}><span style={{fontSize:48}}>🏆</span><div style={{fontSize:20,fontWeight:900,color:L,marginTop:8}}>{m.winner===1?n1:n2} Wins!</div></div>}
-    </div>
-    <div style={{padding:"12px 16px",textAlign:"center",fontSize:10,color:"var(--text3)"}}>⏱ {fmt(el*1000)}</div>
-  </div>;
-}
+    );
+  }
 
-/* COIN TOSS */
-function CoinToss({p1,p2,onResult}){const[ph,setPh]=useState("idle");const[res,setRes]=useState(null);const toss=()=>{vib(40);setPh("spin");const w=Math.random()<.5?1:2;setTimeout(()=>{setRes(w);setPh("done");vib([20,60,20])},1500)};return<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:20,padding:24,width:"100%",height:"100%",animation:"fadeIn .4s ease"}}><Badge color="var(--text3)" bg="rgba(255,255,255,.04)">SERVE TOSS</Badge><div onClick={ph==="idle"?toss:undefined} style={{width:110,height:110,borderRadius:"50%",background:ph==="spin"?"conic-gradient(#C8FF00,#07090A,#C8FF00,#07090A,#C8FF00)":res?"linear-gradient(135deg,#C8FF00,#8BA600)":"var(--card)",border:`2.5px solid ${res?L:"var(--border)"}`,display:"flex",alignItems:"center",justifyContent:"center",animation:ph==="spin"?"spin .3s linear infinite":"none",cursor:ph==="idle"?"pointer":"default",boxShadow:res?"0 0 40px rgba(200,255,0,.25)":"0 8px 32px rgba(0,0,0,.4)",transition:ph==="spin"?"none":"all .5s"}}>{ph!=="done"?<span style={{fontSize:32}}>🎾</span>:<div style={{textAlign:"center"}}><div style={{fontSize:9,fontWeight:700,color:BG,fontFamily:"var(--mono)",letterSpacing:2}}>WON</div><div style={{fontSize:14,fontWeight:900,color:BG,marginTop:2}}>{res===1?p1:p2}</div></div>}</div>{ph==="idle"&&<p style={{color:"var(--text3)",fontSize:14}}>Tap the ball to toss</p>}{ph==="done"&&<div style={{textAlign:"center",animation:"fadeIn .3s ease",width:"100%",maxWidth:300}}><p style={{color:"var(--text2)",fontSize:14,marginBottom:20}}><strong style={{color:L}}>{res===1?p1:p2}</strong> won the toss</p><div style={{display:"flex",gap:10}}><button onClick={()=>onResult(res)} style={{flex:1,padding:"15px 0",background:L,borderRadius:12,color:BG,fontWeight:800}}><Icon d={I.check} size={16} color={BG}/> Start</button><button onClick={()=>onResult(res===1?2:1)} style={{flex:1,padding:"15px 0",background:"var(--card)",borderRadius:12,color:"var(--text2)",fontWeight:700}}><Icon d={I.swap} size={14} color="var(--text3)"/> Swap</button></div></div>}{ph==="idle"&&<div style={{width:"100%",maxWidth:300}}><p style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",textAlign:"center",marginBottom:8,letterSpacing:2}}>OR PICK MANUALLY</p><div style={{display:"flex",gap:8}}>{[1,2].map(pl=><button key={pl} onClick={()=>onResult(pl)} style={{flex:1,padding:"13px 0",background:"var(--card)",border:"1px solid var(--border)",borderRadius:10,color:"var(--text2)",fontSize:13,fontWeight:600}}>{pl===1?p1:p2}</button>)}</div></div>}</div>}
+  /* ─── Share Sheet ─── */
+  function ShareSheet({ peerId, p1, p2, match, elapsed, onClose }) {
+    const lime = "#C8FF00";
+    const [copied, setCopied] = useState(false);
+    const shareUrl = `${window.location.origin}${window.location.pathname}?join=${peerId}`;
 
-/* WATCH CONNECT */
-function WatchConnect({p1,p2,onReady}){const[st,setSt]=useState("idle");const con=()=>{setSt("busy");const ok=WR.activate(p1,p2);setTimeout(()=>setSt(ok&&WR.active?"ok":"fail"),1200)};return<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",padding:24,animation:"fadeIn .4s ease"}}><div style={{width:72,height:88,borderRadius:18,background:st==="ok"?"rgba(200,255,0,.06)":"var(--card)",border:`2px solid ${st==="ok"?L:"var(--border)"}`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20,position:"relative",animation:st==="ok"?"glow 2s infinite":"none"}}><div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",width:28,height:10,borderRadius:"4px 4px 0 0",background:st==="ok"?"rgba(200,255,0,.15)":"var(--card2)",border:`1px solid ${st==="ok"?"rgba(200,255,0,.2)":"var(--border)"}`,borderBottom:"none"}}/><div style={{position:"absolute",bottom:-10,left:"50%",transform:"translateX(-50%)",width:28,height:10,borderRadius:"0 0 4px 4px",background:st==="ok"?"rgba(200,255,0,.15)":"var(--card2)",border:`1px solid ${st==="ok"?"rgba(200,255,0,.2)":"var(--border)"}`,borderTop:"none"}}/><div style={{position:"absolute",right:-6,top:"50%",transform:"translateY(-50%)",width:5,height:14,borderRadius:3,background:st==="ok"?L:"#333"}}/>{st==="busy"?<div style={{width:24,height:24,border:"2.5px solid var(--border)",borderTopColor:L,borderRadius:"50%",animation:"spin .7s linear infinite"}}/>:st==="ok"?<Icon d={I.check} size={28} color={L}/>:<span style={{fontSize:24}}>⌚</span>}</div><h2 style={{fontSize:20,fontWeight:800,marginBottom:6}}>{st==="ok"?"Watch Connected":"Connect Smartwatch"}</h2><p style={{color:"var(--text3)",fontSize:13,textAlign:"center",marginBottom:24,maxWidth:280,lineHeight:1.7}}>{st==="idle"?"Start audio session for watch media controls":st==="busy"?"Activating...":st==="ok"?"Open media controls on your watch":st==="fail"?"Could not start audio.":""}</p>{st==="ok"&&<div style={{background:"var(--card)",borderRadius:14,padding:16,marginBottom:24,width:"100%",maxWidth:300}}><p style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:12}}>WATCH CONTROLS</p><div style={{display:"flex",flexDirection:"column",gap:10}}>{[{i:I.skip_prev,l:"Previous",d:`Point ${p1}`,c:L},{i:I.skip_next,l:"Next",d:`Point ${p2}`,c:L},{i:I.pause,l:"Pause",d:"Undo",c:"#FF9F0A"}].map((r,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:12}}><div style={{width:34,height:34,borderRadius:8,background:"rgba(255,255,255,.04)",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon d={r.i} size={16} color={r.c}/></div><div><span style={{fontSize:13,fontWeight:600}}>{r.l}</span><span style={{fontSize:12,color:"var(--text3)",marginLeft:8}}>{r.d}</span></div></div>)}</div></div>}{st==="idle"&&<><button onClick={con} style={{width:"100%",maxWidth:300,padding:16,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:15}}>Activate Smartwatch</button><button onClick={()=>onReady(false)} style={{marginTop:14,padding:"12px 24px",background:"transparent",color:"var(--text3)",fontSize:13}}>Skip — without watch</button></>}{st==="ok"&&<button onClick={()=>onReady(true)} style={{width:"100%",maxWidth:300,padding:16,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:15,animation:"glow 2s infinite"}}>Start Match 🎾</button>}{st==="fail"&&<div style={{display:"flex",gap:10,width:"100%",maxWidth:300}}><button onClick={con} style={{flex:1,padding:"14px 0",background:"var(--card)",borderRadius:12,color:"var(--text2)",fontWeight:700}}>Retry</button><button onClick={()=>onReady(false)} style={{flex:1,padding:"14px 0",background:L,borderRadius:12,color:BG,fontWeight:800}}>Without watch</button></div>}</div>}
+    const matchText = match ? (() => {
+      const sets = match.sets.map((s,i) => `Set ${i+1}: ${s.a}-${s.b}`).join(", ");
+      const current = `Games: ${match.g1}-${match.g2}`;
+      const pts = `Points: ${getPts(match,1)}-${getPts(match,2)}`;
+      const srv = `${match.server === 1 ? p1 : p2} serving`;
+      return `🎾 ${p1} vs ${p2}\n${sets ? sets + ", " : ""}${current}\n${pts}\n${srv}\n⏱ ${fmtTime(elapsed)}`;
+    })() : "";
 
-/* MAIN APP */
-function App(){
-  if(new URLSearchParams(window.location.search).get('join'))return<SpectatorView/>;
-  const[scr,setScr]=useState("setup");
-  const[p1,setP1]=useState("Player 1");const[p2,setP2]=useState("Player 2");
-  const[setLen,setSetLen]=useState(6);const[noAd,setNoAd]=useState(false);const[matchTB,setMatchTB]=useState(false);
-  const[showHelp,setShowHelp]=useState(false);const[showEdit,setShowEdit]=useState(false);const[showShare,setShowShare]=useState(false);
-  const[m,setM]=useState(null);const[hist,setHist]=useState([]);const[el,setEl]=useState(0);const[fl,setFl]=useState(null);
-  const[watchOn,setWatchOn]=useState(false);const[rMsg,setRMsg]=useState(null);const[sv,setSv]=useState(1);const[soundOn,setSoundOn]=useState(true);
-  const[roomId,setRoomId]=useState(null);
-  const ti=useRef(null);const stt=useRef(null);const wl=useRef(null);const elR=useRef(0);
-  const mR=useRef(null);const hR=useRef([]);const p1R=useRef(p1);const p2R=useRef(p2);
-  mR.current=m;hR.current=hist;p1R.current=p1;p2R.current=p2;
-  const cfg={setLen,noAd,matchTB};
-  const flash=t=>{setRMsg(t);setTimeout(()=>setRMsg(null),2500)};
-  const bc=useCallback((ms,elapsed)=>{LS.send({m:ms,n1:p1R.current,n2:p2R.current,el:Math.round((elapsed||elR.current)/1000)})},[]);
+    const doShare = async () => {
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: "Live Tennis Score", url: shareUrl });
+        } catch(e) {}
+      } else {
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch(e) {}
+      }
+    };
 
-  const score=useCallback((p,src)=>{const c=mR.current;if(!c||c.over)return;vib(30);setHist(h=>[...h,clone(c)]);const n=pt(c,p);setM(n);setFl(p);setTimeout(()=>setFl(null),350);WR.update(scoreText(n,p1R.current,p2R.current),p1R.current,p2R.current);Ump.ann(c,n,p1R.current,p2R.current);bc(n);if(src)flash(src);if(n.over)setTimeout(()=>{clearInterval(ti.current);wl.current?.release();WR.stop();setWatchOn(false);setScr("final")},1800)},[bc]);
-  const undo=useCallback((src)=>{const h=hR.current;if(!h.length)return;vib(20);const prev=h[h.length-1];setM(prev);setHist(x=>x.slice(0,-1));Ump.say("Correction");bc(prev);if(src)flash(src)},[bc]);
+    const doShareText = async () => {
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: "Tennis Score", text: matchText });
+        } catch(e) {}
+      } else {
+        try {
+          await navigator.clipboard.writeText(matchText);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch(e) {}
+      }
+    };
 
-  useEffect(()=>{Ump.on=soundOn;if(!soundOn)speechSynthesis?.cancel()},[soundOn]);
-  useEffect(()=>{speechSynthesis?.getVoices()},[]);
-  const onToss=s=>{setSv(s);setScr("watch")};
-  const onWatch=connected=>{
-    setWatchOn(connected);
-    if(connected){WR.onPrev=()=>score(1,"\u23EE "+p1R.current);WR.onNext=()=>score(2,"\u23ED "+p2R.current);WR.onPause=()=>undo("\u23F8 Undo")}
-    const nm=fresh(sv,cfg);setM(nm);setHist([]);setEl(0);setScr("match");
-    stt.current=Date.now();ti.current=setInterval(()=>{const e=Date.now()-stt.current;setEl(e);elR.current=e},1000);
-    (async()=>{try{if("wakeLock"in navigator)wl.current=await navigator.wakeLock.request("screen")}catch{}})();
-    Ump.say(`${sv===1?p1:p2} to serve. Play`,600);
-    LS.host(id=>setRoomId(id));setTimeout(()=>bc(nm,0),2000);
-  };
-  const end=()=>{clearInterval(ti.current);WR.stop();setWatchOn(false);wl.current?.release();speechSynthesis?.cancel();setScr("final")};
-  const reset=()=>{clearInterval(ti.current);WR.stop();setWatchOn(false);wl.current?.release();speechSynthesis?.cancel();LS.destroy();setRoomId(null);setScr("setup")};
-  useEffect(()=>()=>{clearInterval(ti.current);WR.stop();wl.current?.release();speechSynthesis?.cancel();LS.destroy()},[]);
-  const sw=m?chkSw(m):false;
-  const fL=()=>{const p=[];if(setLen!==6)p.push(`Set ${setLen}`);if(noAd)p.push("No-Ad");if(matchTB)p.push("MTB");return p.length?p.join(" · "):"Standard"};
+    return (
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        display: "flex", flexDirection: "column", justifyContent: "flex-end",
+      }}>
+        <div onClick={onClose} style={{
+          position: "absolute", inset: 0,
+          background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)"
+        }} />
+        
+        <div style={{
+          position: "relative", background: "#141617",
+          borderRadius: "20px 20px 0 0", 
+          padding: "12px 20px calc(20px + env(safe-area-inset-bottom, 14px))",
+          animation: "slideUp 0.3s ease",
+        }}>
+          <div style={{ width: 36, height: 4, background: "#444", borderRadius: 2, margin: "0 auto 20px" }} />
+          
+          <h3 style={{ color: "white", fontSize: 20, fontWeight: 800, margin: "0 0 16px" }}>Share Score</h3>
 
-  return<div style={{fontFamily:"var(--font)",height:"100%",background:"var(--bg)",color:"var(--text)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-    {showHelp&&<HelpSheet onClose={()=>setShowHelp(false)}/>}
-    {showEdit&&m&&<EditSheet m={m} p1={p1} p2={p2} onApply={nm=>{setHist(h=>[...h,clone(m)]);setM(nm);bc(nm)}} onClose={()=>setShowEdit(false)}/>}
-    {showShare&&m&&<ShareSheet m={m} p1={p1} p2={p2} el={el} roomId={roomId} onClose={()=>setShowShare(false)}/>}
+          {/* Live Link */}
+          <div style={{
+            background: "#1a2010", border: `1px solid ${lime}33`,
+            borderRadius: 14, padding: 16, marginBottom: 16,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: lime, animation: "blink 2s infinite" }} />
+              <span style={{ color: lime, fontWeight: 700, fontSize: 15 }}>Live Scoreboard</span>
+            </div>
+            <p style={{ color: "#8a9a6a", fontSize: 13, margin: "0 0 14px", lineHeight: 1.4 }}>
+              Opponent opens this link — sees live score on phone, watch, and headphones.
+            </p>
+            <button onClick={doShare} style={{
+              width: "100%", padding: 14, borderRadius: 10,
+              background: lime, color: "black", fontWeight: 800, fontSize: 15,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            }}>
+              {copied ? "✓ Copied!" : "📤 Share Live Link"}
+            </button>
+          </div>
 
-    {scr==="setup"&&<div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:28,overflow:"auto",animation:"fadeIn .5s ease"}}>
-      <div style={{width:56,height:56,borderRadius:16,background:"linear-gradient(135deg,rgba(200,255,0,.12),rgba(200,255,0,.04))",border:"1px solid rgba(200,255,0,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,marginBottom:12}}>🎾</div>
-      <h1 style={{fontSize:26,fontWeight:900,letterSpacing:-.5,marginBottom:3}}>Tennis Score</h1>
-      <p style={{color:"var(--text3)",fontSize:10,fontFamily:"var(--mono)",letterSpacing:3,marginBottom:28}}>SMART SCOREBOARD</p>
-      <div style={{width:"100%",maxWidth:340}}>
-        {[{l:"PLAYER 1",v:p1,s:setP1},{l:"PLAYER 2",v:p2,s:setP2}].map((f,i)=><div key={i} style={{marginBottom:12}}><label style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,display:"block",marginBottom:4}}>{f.l}</label><input value={f.v} onChange={e=>f.s(e.target.value)} onFocus={e=>{e.target.style.borderColor=L}} onBlur={e=>{e.target.style.borderColor="var(--border)"}} style={{width:"100%",padding:"13px 16px",borderRadius:12,background:"var(--card)",border:"1.5px solid var(--border)",color:"var(--text)",fontSize:16,fontWeight:600}}/></div>)}
-        <div style={{marginTop:16,marginBottom:16}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}><span style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2}}>MATCH FORMAT</span><button onClick={()=>setShowHelp(true)} style={{width:24,height:24,borderRadius:12,background:"rgba(255,255,255,.05)",border:"1px solid var(--border)",color:"var(--text3)",fontSize:12,fontWeight:700,fontFamily:"var(--mono)",display:"flex",alignItems:"center",justifyContent:"center"}}>?</button></div>
-          <div style={{marginBottom:10}}><label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>Set Length</label><Seg options={[{v:4,l:"4"},{v:6,l:"6"},{v:8,l:"8 Pro"}]} value={setLen} onChange={setSetLen}/></div>
-          <div style={{marginBottom:10}}><label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>Deuce</label><Seg options={[{v:false,l:"Advantage"},{v:true,l:"No-Ad"}]} value={noAd} onChange={setNoAd}/></div>
-          <div><label style={{fontSize:11,color:"var(--text2)",fontWeight:600,display:"block",marginBottom:5}}>Final Set</label><Seg options={[{v:false,l:"Normal"},{v:true,l:"Match TB (10)"}]} value={matchTB} onChange={setMatchTB}/></div>
+          {/* Text Score */}
+          {match && (
+            <div style={{
+              background: "#1a1c1d", border: "1px solid #2a2c2d",
+              borderRadius: 14, padding: 16, marginBottom: 12,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 16 }}>🎾</span>
+                <span style={{ color: "white", fontWeight: 700 }}>{p1} vs {p2}</span>
+              </div>
+              <div style={{ color: "#888", fontSize: 13, fontFamily: "'DM Mono', monospace", lineHeight: 1.6 }}>
+                {match.sets.map((s,i) => <div key={i}>Set {i+1}: {s.a}-{s.b}</div>)}
+                <div>Games: {match.g1}-{match.g2}</div>
+                <div>Points: {getPts(match,1)}-{getPts(match,2)}</div>
+                <div>{match.server === 1 ? p1 : p2} serving</div>
+                <div>⏱ {fmtTime(elapsed)}</div>
+              </div>
+            </div>
+          )}
+
+          <button onClick={doShareText} style={{
+            width: "100%", padding: 14, borderRadius: 10,
+            background: "transparent", color: "white", fontWeight: 700, fontSize: 15,
+            border: "1px solid #333",
+          }}>
+            Share as Text
+          </button>
         </div>
-        <button onClick={()=>setScr("toss")} style={{width:"100%",padding:17,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:16}}>Continue</button>
       </div>
-    </div>}
+    );
+  }
 
-    {scr==="toss"&&<CoinToss p1={p1} p2={p2} onResult={onToss}/>}
-    {scr==="watch"&&<WatchConnect p1={p1} p2={p2} onReady={onWatch}/>}
+  /* ─── Viewer Screen ─── */
+  function ViewerScreen({ hostId }) {
+    const { state, status } = usePeerViewer(hostId);
+    const lime = "#C8FF00";
+    const bg = "#07090A";
 
-    {scr==="match"&&m&&<div style={{flex:1,display:"flex",flexDirection:"column"}}>
-      <div style={{display:"flex",alignItems:"center",padding:"8px 16px",gap:6,borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-        {watchOn?<Badge color={L} bg="rgba(200,255,0,.06)"><span style={{width:5,height:5,borderRadius:"50%",background:L,display:"inline-block",animation:"pulse 1.5s infinite"}}/>Watch</Badge>:<Badge color="var(--text3)" bg="rgba(255,255,255,.03)">Touch</Badge>}
-        {fL()!=="Standard"&&<Badge color="var(--text3)" bg="rgba(255,255,255,.03)">{fL()}</Badge>}
-        {roomId&&<Badge color={L} bg="rgba(200,255,0,.06)"><Icon d={I.wifi} size={9} color={L}/>{LS.conns.length>0?LS.conns.length:""}</Badge>}
-        <span style={{flex:1}}/>
-        {rMsg&&<Badge color={L} bg="rgba(200,255,0,.1)" style={{animation:"popIn .2s ease"}}>{rMsg}</Badge>}
-      </div>
-      <div style={{padding:"8px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",color:"var(--text3)",fontSize:12,fontFamily:"var(--mono)"}}>
-        <span>{fmt(el)}</span>
-        <div style={{textAlign:"center"}}><div style={{color:m.mtb?L:m.tb?L:m.deuce?"#FF9F0A":"var(--text3)",fontWeight:600,fontSize:11}}>{m.mtb?"MATCH TIEBREAK":m.tb?"TIEBREAK":m.deuce?"DEUCE":m.adv?"ADVANTAGE":`SET ${m.sets.length+1}`}</div>{!m.over&&!m.deuce&&<div style={{color:L,fontSize:15,fontWeight:800,marginTop:2}}>{scoreText(m,p1,p2)}</div>}</div>
-        <span>PT {m.pn}</span>
-      </div>
-      {!m.over&&<div style={{textAlign:"center",paddingBottom:4}}><span style={{fontSize:10,color:"var(--text3)",fontFamily:"var(--mono)"}}>{m.server===1?p1:p2} serving</span></div>}
-      {sw&&<div style={{margin:"0 16px 6px",padding:"10px 16px",borderRadius:10,background:"rgba(200,255,0,.08)",border:"1px solid rgba(200,255,0,.15)",display:"flex",alignItems:"center",gap:10,animation:"slideDown .3s ease"}}><Icon d={I.swap} size={18} color={L}/><span style={{fontSize:13,fontWeight:700,color:L}}>Change Ends</span></div>}
-      {m.sets.length>0&&<div style={{display:"flex",justifyContent:"center",gap:12,padding:"4px 16px 8px"}}>{m.sets.map((s,i)=><div key={i} style={{background:"var(--card)",borderRadius:8,padding:"4px 12px",display:"flex",gap:6,alignItems:"center"}}>{s.mtb&&<span style={{fontSize:8,color:L,fontFamily:"var(--mono)"}}>TB</span>}<span style={{fontSize:13,fontWeight:700,color:s.a>s.b?L:"var(--text3)",fontFamily:"var(--mono)"}}>{s.a}</span><span style={{fontSize:10,color:"var(--border)"}}>{"\u2013"}</span><span style={{fontSize:13,fontWeight:700,color:s.b>s.a?L:"var(--text3)",fontFamily:"var(--mono)"}}>{s.b}</span></div>)}</div>}
-      <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",padding:"0 12px"}}><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        {[1,2].map(pl=>{const srv=m.server===pl,pts=gp(m,pl),isAdv=m.adv&&m.advP===pl;return<div key={pl} style={{background:fl===pl?"rgba(200,255,0,.05)":"var(--card)",borderRadius:22,padding:"18px 16px 16px",textAlign:"center",position:"relative",transition:"background .3s",border:srv?`1.5px solid rgba(200,255,0,.35)`:`1.5px solid ${isAdv?"rgba(200,255,0,.15)":"var(--border)"}`}}>
-          {srv&&<div style={{position:"absolute",top:12,right:14,width:7,height:7,borderRadius:"50%",background:L,boxShadow:`0 0 8px ${L}`}}/>}
-          <div style={{color:"var(--text2)",fontWeight:700,fontSize:14,marginBottom:10}}>{pl===1?p1:p2}</div>
-          <div style={{display:"flex",justifyContent:"center",gap:20,marginBottom:12}}><div><div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:3}}>SETS</div><div style={{fontSize:18,fontWeight:800}}>{pl===1?m.s1:m.s2}</div></div><div style={{width:1,background:"var(--border)"}}/><div><div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:3}}>{m.mtb?"MTB":"GAMES"}</div><div style={{fontSize:18,fontWeight:800}}>{m.mtb?(pl===1?m.mtb1:m.mtb2):(pl===1?m.g1:m.g2)}</div></div></div>
-          <div style={{fontSize:64,fontWeight:900,lineHeight:1,color:pts==="AD"?L:"var(--text)"}}>{pts}</div>
-          {srv&&<div style={{fontSize:8,color:"var(--text3)",fontFamily:"var(--mono)",marginTop:8,letterSpacing:2}}>SERVING</div>}
-        </div>})}
-      </div></div>
-      <div style={{padding:"8px 12px 14px",paddingBottom:"max(14px, env(safe-area-inset-bottom))"}}>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>{[1,2].map(pl=><button key={pl} onClick={()=>score(pl)} style={{padding:"20px 0",borderRadius:16,background:"var(--card)",color:L,fontSize:16,fontWeight:800,border:"1.5px solid rgba(200,255,0,.3)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>{pl===1&&<svg width="10" height="12" viewBox="0 0 10 12" fill={L}><path d="M0 6l10-6v12z"/></svg>}{pl===1?p1:p2}{pl===2&&<svg width="10" height="12" viewBox="0 0 10 12" fill={L}><path d="M10 6L0 0v12z"/></svg>}</button>)}</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr auto auto auto 1fr",gap:6,alignItems:"center"}}>
-          <button onClick={()=>undo()} disabled={!hist.length} style={{padding:"13px 0",borderRadius:12,background:"var(--card)",border:"1px solid var(--border)",color:hist.length?"var(--text2)":"var(--border)",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:6,opacity:hist.length?1:.4}}><Icon d={I.undo} size={15} color={hist.length?"var(--text2)":"var(--border)"}/>Undo</button>
-          <button onClick={()=>setShowEdit(true)} style={{width:40,height:40,borderRadius:20,background:"var(--card)",border:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon d={I.edit} size={14} color="var(--text3)"/></button>
-          <button onClick={()=>setSoundOn(x=>!x)} style={{width:48,height:48,borderRadius:24,background:soundOn?"rgba(200,255,0,.1)":"var(--card)",border:`1.5px solid ${soundOn?"rgba(200,255,0,.25)":"var(--border)"}`,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon d={soundOn?I.sound_on:I.sound_off} size={18} color={soundOn?L:"var(--text3)"}/></button>
-          <button onClick={()=>setShowShare(true)} style={{width:40,height:40,borderRadius:20,background:"var(--card)",border:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"center"}}><Icon d={I.share} size={14} color="var(--text3)"/></button>
-          <button onClick={end} style={{padding:"13px 0",borderRadius:12,background:"var(--card)",border:"1px solid var(--border)",color:"var(--text3)",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Icon d={I.end} size={14} color="var(--text3)"/>End</button>
+    if (status === "connecting" && !state) {
+      return (
+        <div style={{
+          fontFamily: "'Outfit', sans-serif", height: "100vh", background: bg, color: "white",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          paddingTop: "max(env(safe-area-inset-top, 20px), 20px)",
+        }}>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap');
+            @keyframes spin { to { transform: rotate(360deg); } }
+          `}</style>
+          <div style={{
+            width: 50, height: 50, border: "3px solid #333",
+            borderTop: `3px solid ${lime}`, borderRadius: "50%",
+            animation: "spin 1s linear infinite", marginBottom: 20,
+          }} />
+          <p style={{ color: "#888", fontSize: 15 }}>Connecting to match...</p>
         </div>
-      </div>
-    </div>}
+      );
+    }
 
-    {scr==="final"&&m&&<div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,animation:"fadeIn .5s ease"}}>
-      <div style={{fontSize:56,marginBottom:12}}>🏆</div>
-      <h2 style={{color:L,fontSize:26,fontWeight:900,marginBottom:4}}>{m.winner?`${m.winner===1?p1:p2} Wins!`:"Match Ended"}</h2>
-      <p style={{color:"var(--text3)",fontSize:13,marginBottom:20,fontFamily:"var(--mono)"}}>{fmt(el)} duration</p>
-      <div style={{width:"100%",maxWidth:340,background:"var(--card)",borderRadius:16,padding:20,marginBottom:16}}><table style={{width:"100%",borderCollapse:"collapse",fontFamily:"var(--mono)",fontSize:13}}><thead><tr style={{color:"var(--text3)",fontSize:10,letterSpacing:2}}><th style={{textAlign:"left",padding:"0 0 12px",fontWeight:500}}>PLAYER</th>{m.sets.map((_,i)=><th key={i} style={{textAlign:"center",padding:"0 0 12px",fontWeight:500}}>{_.mtb?"MTB":`S${i+1}`}</th>)}</tr></thead><tbody>{[1,2].map(pl=><tr key={pl}><td style={{fontWeight:700,color:m.winner===pl?L:"var(--text)",padding:"6px 0"}}>{pl===1?p1:p2}</td>{m.sets.map((s,i)=>{const v=pl===1?s.a:s.b;return<td key={i} style={{textAlign:"center",fontWeight:700,fontSize:18,color:(pl===1?s.a>s.b:s.b>s.a)?"var(--text)":"var(--text3)",padding:"6px 0"}}>{v}</td>})}</tr>)}</tbody></table></div>
-      <div style={{display:"flex",gap:8,width:"100%",maxWidth:340,marginBottom:16}}>{[1,2].map(pl=>{const t=pl===1?m.t1:m.t2;const o=pl===1?m.t2:m.t1;return<div key={pl} style={{flex:1,background:"var(--card)",padding:14,borderRadius:12,textAlign:"center"}}><div style={{fontSize:9,color:"var(--text3)",fontFamily:"var(--mono)",letterSpacing:2,marginBottom:4}}>TOTAL PTS</div><div style={{fontSize:22,fontWeight:800,color:t>o?"var(--text)":"var(--text3)"}}>{t}</div><div style={{fontSize:10,color:"var(--text3)",marginTop:2}}>{pl===1?p1:p2}</div></div>})}</div>
-      <button onClick={()=>setShowShare(true)} style={{width:"100%",maxWidth:340,padding:14,borderRadius:12,background:"var(--card)",border:"1px solid var(--border)",color:"var(--text2)",fontWeight:700,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:10}}><Icon d={I.share} size={16} color="var(--text2)"/>Share Result</button>
-      <button onClick={reset} style={{width:"100%",maxWidth:340,padding:17,borderRadius:14,background:L,color:BG,fontWeight:800,fontSize:16}}>New Match</button>
-    </div>}
-  </div>;
-}
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-</script></body></html>
+    if (status === "error" && !state) {
+      return (
+        <div style={{
+          fontFamily: "'Outfit', sans-serif", height: "100vh", background: bg, color: "white",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          paddingTop: "max(env(safe-area-inset-top, 20px), 20px)",
+        }}>
+          <style>{`@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap');`}</style>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📡</div>
+          <h2 style={{ marginBottom: 6 }}>Cannot Connect</h2>
+          <p style={{ color: "#666", marginBottom: 24, textAlign: "center", padding: "0 40px", lineHeight: 1.5 }}>
+            Match not found. Ask scorer for a new link.
+          </p>
+          <button onClick={() => window.location.reload()} style={{
+            padding: "14px 40px", borderRadius: 12, background: lime,
+            color: "black", fontWeight: 800, fontSize: 15, border: "none",
+            fontFamily: "'Outfit', sans-serif",
+          }}>Retry</button>
+        </div>
+      );
+    }
+
+    const d = state;
+    if (!d) return null;
+    const { match: m, p1, p2, elapsed } = d;
+
+    return (
+      <div style={{
+        fontFamily: "'Outfit', sans-serif", height: "100vh", background: bg, color: "white",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+        paddingTop: "max(env(safe-area-inset-top, 20px), 20px)",
+      }}>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700;800;900&display=swap');
+          @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+          @keyframes spin { to { transform: rotate(360deg); } }
+          * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        `}</style>
+
+        {/* Connection indicator */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px", fontSize: 11, color: "#555" }}>
+          <div style={{
+            width: 6, height: 6, borderRadius: "50%",
+            background: status === "connected" ? lime : "#f5a623",
+            animation: status === "connecting" ? "blink 1s infinite" : "none",
+          }} />
+          {status === "connected" ? "LIVE" : "Reconnecting..."}
+        </div>
+
+        {/* Top Bar */}
+        <div style={{ padding: "8px 15px", display: "flex", justifyContent: "space-between", color: "#666", fontSize: 13, fontFamily: "'DM Mono', monospace" }}>
+          <span>{fmtTime(elapsed)}</span>
+          <span>{m.tb ? "TIEBREAK" : `SET ${m.sets.length + 1}`}</span>
+          <span>PT {m.pointNum}</span>
+        </div>
+
+        <div style={{ textAlign: "center", padding: "4px 15px", fontSize: 13, fontFamily: "'DM Mono', monospace", color: "#888" }}>
+          {m.server === 1 ? p1 : p2} serving
+        </div>
+
+        {/* Sets */}
+        {m.sets.length > 0 && (
+          <div style={{display: "flex", justifyContent: "center", gap: 15, padding: "10px 0", fontSize: 14, fontFamily: "'DM Mono', monospace"}}>
+            {m.sets.map((s, i) => (
+              <span key={i} style={{color: "#888"}}>
+                <span style={{color: s.a > s.b ? lime : "#888"}}>{s.a}</span>-<span style={{color: s.b > s.a ? lime : "#888"}}>{s.b}</span>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Score Cards */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: 15 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[1, 2].map(pl => {
+              const isSrv = m.server === pl;
+              const pts = getPts(m, pl);
+              return (
+                <div key={pl} style={{
+                  background: "#121415", borderRadius: 20, padding: 20,
+                  textAlign: "center", position: "relative",
+                  border: isSrv ? `1px solid ${lime}` : "1px solid #222"
+                }}>
+                  {isSrv && <div style={{position:"absolute", top:10, right:10, width:8, height:8, background:lime, borderRadius:"50%"}} />}
+                  <div style={{color: "#aaa", fontWeight: 700, fontSize: 14, marginBottom: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>
+                    {pl === 1 ? p1 : p2}
+                  </div>
+                  <div style={{fontSize: 24, fontWeight: 800, marginBottom: 10}}>
+                    {pl === 1 ? m.g1 : m.g2} <span style={{fontSize: 10, color: "#444", fontWeight: 400}}>GAMES</span>
+                  </div>
+                  <div style={{fontSize: 70, fontWeight: 900, color: pts === "AD" ? lime : "white", lineHeight: 1}}>
+                    {pts}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {m.over && (
+          <div style={{ padding: 20, textAlign: "center" }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>🏆</div>
+            <div style={{ color: lime, fontWeight: 800, fontSize: 22 }}>
+              {m.winner === 1 ? p1 : p2} Wins!
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ─── Main Scorer App ─── */
+  function TennisScoreboard() {
+    // Check viewer mode first
+    const params = new URLSearchParams(window.location.search);
+    const joinId = params.get("join");
+    if (joinId) {
+      return <ViewerScreen hostId={joinId} />;
+    }
+
+    const [screen, setScreen] = useState("setup");
+    const [p1, setP1] = useState("Player 1");
+    const [p2, setP2] = useState("Player 2");
+    const [match, setMatch] = useState(null);
+    const [hist, setHist] = useState([]);
+    const [elapsed, setElapsed] = useState(0);
+    const [flash, setFlash] = useState(null);
+    const [showShare, setShowShare] = useState(false);
+    const timerRef = useRef(null);
+    const startRef = useRef(null);
+
+    const { peerId, peerReady, broadcast, viewerCount } = usePeerHost();
+
+    const startTimer = () => {
+      startRef.current = Date.now();
+      timerRef.current = setInterval(() => setElapsed(Date.now() - startRef.current), 1000);
+    };
+    const stopTimer = () => clearInterval(timerRef.current);
+
+    const startMatch = (server) => {
+      const m = freshMatch(server);
+      setMatch(m);
+      setHist([]);
+      setElapsed(0);
+      setScreen("match");
+      startTimer();
+    };
+
+    // Broadcast on match state change
+    useEffect(() => {
+      if (match && peerReady) {
+        broadcast({ match: clone(match), p1, p2, elapsed });
+      }
+    }, [match, peerReady]);
+
+    // Broadcast timer periodically
+    useEffect(() => {
+      if (screen !== "match" || !peerReady || !match) return;
+      const iv = setInterval(() => {
+        if (startRef.current) {
+          const el = Date.now() - startRef.current;
+          broadcast({ match: clone(match), p1, p2, elapsed: el });
+        }
+      }, 5000);
+      return () => clearInterval(iv);
+    }, [screen, peerReady, match, p1, p2]);
+
+    const doScore = useCallback((p) => {
+      if (!match || match.over) return;
+      vibrate(30);
+      setHist(h => [...h, clone(match)]);
+      const next = point(match, p);
+      setMatch(next);
+      setFlash(p);
+      setTimeout(() => setFlash(null), 300);
+
+      if (next.over) {
+        setTimeout(() => { stopTimer(); setScreen("final"); }, 1500);
+      }
+    }, [match]);
+
+    const doUndo = useCallback(() => {
+      if (hist.length === 0) return;
+      vibrate(20);
+      setMatch(hist[hist.length - 1]);
+      setHist(h => h.slice(0, -1));
+    }, [hist]);
+
+    const reset = () => { stopTimer(); setScreen("setup"); };
+
+    const lime = "#C8FF00";
+    const bg = "#07090A";
+    const showSwitch = match ? checkSwitchSides(match) : false;
+
+    return (
+      <div style={{
+        fontFamily: "'Outfit', sans-serif",
+        height: "100vh", background: bg, color: "white",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+        paddingTop: "max(env(safe-area-inset-top, 20px), 20px)",
+      }}>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Outfit:wght@400;600;700;800;900&display=swap');
+          @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+          @keyframes spin { to { transform: rotate(360deg); } }
+          @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+          @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+          * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+          button { border: none; font-family: inherit; cursor: pointer; }
+          input:focus { outline: none; border-color: ${lime} !important; }
+        `}</style>
+
+        {/* SETUP */}
+        {screen === "setup" && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 30 }}>
+            <div style={{ fontSize: 40, marginBottom: 20 }}>🎾</div>
+            <h1 style={{ marginBottom: 40 }}>Tennis Score</h1>
+            <input value={p1} onChange={e=>setP1(e.target.value)} placeholder="Player 1" style={{width: "100%", padding: 15, marginBottom: 15, borderRadius: 10, background: "#1a1a1a", border: "1px solid #333", color: "white", fontSize: 16}} />
+            <input value={p2} onChange={e=>setP2(e.target.value)} placeholder="Player 2" style={{width: "100%", padding: 15, marginBottom: 30, borderRadius: 10, background: "#1a1a1a", border: "1px solid #333", color: "white", fontSize: 16}} />
+            <button onClick={() => setScreen("toss")} style={{width: "100%", padding: 18, borderRadius: 12, background: lime, color: "black", fontWeight: 800, fontSize: 16}}>CONTINUE</button>
+          </div>
+        )}
+
+        {/* TOSS */}
+        {screen === "toss" && <CoinToss p1={p1} p2={p2} onResult={startMatch} />}
+
+        {/* MATCH */}
+        {screen === "match" && match && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "10px 15px", display: "flex", justifyContent: "space-between", alignItems: "center", color: "#666", fontSize: 13, fontFamily: "'DM Mono', monospace" }}>
+              <span>{fmtTime(elapsed)}</span>
+              <span>{match.tb ? "TIEBREAK" : `SET ${match.sets.length + 1}`}</span>
+              <span>PT {match.pointNum}</span>
+            </div>
+
+            {showSwitch && (
+              <div style={{
+                background: lime, color: "black", textAlign: "center",
+                padding: "8px", fontWeight: "900", letterSpacing: 1,
+                animation: "blink 1s infinite", fontSize: 14
+              }}>
+                🔁 CHANGE ENDS
+              </div>
+            )}
+
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: 10 }}>
+              {match.sets.length > 0 && (
+                 <div style={{display: "flex", justifyContent: "center", gap: 15, marginBottom: 10, fontSize: 14, fontFamily: "'DM Mono', monospace"}}>
+                    {match.sets.map((s, i) => (
+                      <span key={i} style={{color: "#888"}}>
+                        <span style={{color: s.a > s.b ? lime : "#888"}}>{s.a}</span>-<span style={{color: s.b > s.a ? lime : "#888"}}>{s.b}</span>
+                      </span>
+                    ))}
+                 </div>
+              )}
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {[1, 2].map(pl => {
+                   const isSrv = match.server === pl;
+                   const pts = getPts(match, pl);
+                   return (
+                     <div key={pl} style={{
+                       background: "#121415", borderRadius: 20, padding: 20,
+                       textAlign: "center", position: "relative",
+                       border: isSrv ? `1px solid ${lime}` : "1px solid #222"
+                     }}>
+                        {isSrv && <div style={{position:"absolute", top:10, right:10, width:8, height:8, background:lime, borderRadius:"50%"}} />}
+                        <div style={{color: "#aaa", fontWeight: 700, fontSize: 14, marginBottom: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis"}}>
+                          {pl === 1 ? p1 : p2}
+                        </div>
+                        <div style={{fontSize: 24, fontWeight: 800, marginBottom: 10}}>
+                          {pl === 1 ? match.g1 : match.g2} <span style={{fontSize: 10, color: "#444", fontWeight: 400}}>GAMES</span>
+                        </div>
+                        <div style={{fontSize: 70, fontWeight: 900, color: pts === "AD" ? lime : "white", lineHeight: 1}}>
+                          {pts}
+                        </div>
+                     </div>
+                   )
+                })}
+              </div>
+            </div>
+
+            <div style={{ padding: "15px 20px 20px" }}>
+               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 15 }}>
+                  <button onClick={() => doScore(1)} style={{padding: 30, borderRadius: 16, background: "#1f2223", color: lime, fontSize: 18, fontWeight: 800, border: `1px solid ${lime}`}}>{p1}</button>
+                  <button onClick={() => doScore(2)} style={{padding: 30, borderRadius: 16, background: "#1f2223", color: lime, fontSize: 18, fontWeight: 800, border: `1px solid ${lime}`}}>{p2}</button>
+               </div>
+               <div style={{display: "flex", gap: 10}}>
+                 <button onClick={doUndo} disabled={hist.length===0} style={{flex: 1, padding: 15, borderRadius: 12, background: "#111", color: "#666", border: "1px solid #333"}}>Undo</button>
+                 <button onClick={() => setShowShare(true)} style={{flex: 1, padding: 15, borderRadius: 12, background: "#111", color: viewerCount > 0 ? lime : "#666", border: viewerCount > 0 ? `1px solid ${lime}33` : "1px solid #333", position: "relative"}}>
+                   Share
+                   {viewerCount > 0 && (
+                     <span style={{
+                       position: "absolute", top: -6, right: -6,
+                       background: lime, color: "black", fontSize: 10, fontWeight: 800,
+                       width: 18, height: 18, borderRadius: "50%",
+                       display: "flex", alignItems: "center", justifyContent: "center",
+                     }}>{viewerCount}</span>
+                   )}
+                 </button>
+                 <button onClick={() => {stopTimer(); setScreen("final")}} style={{flex: 1, padding: 15, borderRadius: 12, background: "#111", color: "#666", border: "1px solid #333"}}>End</button>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {/* FINAL */}
+        {screen === "final" && match && (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
+             <div style={{fontSize: 60, marginBottom: 10}}>🏆</div>
+             <h2 style={{color: lime, fontSize: 28, textTransform: "uppercase", marginBottom: 5}}>
+               {match.winner ? (match.winner === 1 ? p1 : p2) + " Wins!" : "Finished"}
+             </h2>
+             <p style={{color: "#555", marginBottom: 30}}>{fmtTime(elapsed)} match duration</p>
+
+             <div style={{ width: "100%", maxWidth: 350, background: "#121415", borderRadius: 16, padding: 20, marginBottom: 20 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1.5fr repeat(3, 1fr)", marginBottom: 15, borderBottom: "1px solid #222", paddingBottom: 10, fontSize: 12, color: "#555", fontFamily: "'DM Mono', monospace" }}>
+                   <div style={{textAlign: "left"}}>PLAYER</div>
+                   <div style={{textAlign: "center"}}>SET 1</div>
+                   <div style={{textAlign: "center"}}>SET 2</div>
+                   <div style={{textAlign: "center"}}>SET 3</div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1.5fr repeat(3, 1fr)", marginBottom: 15, alignItems: "center" }}>
+                   <div style={{fontWeight: 700, color: match.winner === 1 ? lime : "white", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{p1}</div>
+                   {[0, 1, 2].map(i => {
+                      const set = match.sets[i];
+                      let val = "-"; let color = "#333";
+                      if (set) { val = set.a; color = set.a > set.b ? "white" : "#666"; }
+                      else if (!match.over && match.sets.length === i) { val = match.g1; color = "#888"; }
+                      return <div key={i} style={{textAlign: "center", fontWeight: 700, fontSize: 18, color}}>{val}</div>
+                   })}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1.5fr repeat(3, 1fr)", alignItems: "center" }}>
+                   <div style={{fontWeight: 700, color: match.winner === 2 ? lime : "white", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{p2}</div>
+                   {[0, 1, 2].map(i => {
+                      const set = match.sets[i];
+                      let val = "-"; let color = "#333";
+                      if (set) { val = set.b; color = set.b > set.a ? "white" : "#666"; }
+                      else if (!match.over && match.sets.length === i) { val = match.g2; color = "#888"; }
+                      return <div key={i} style={{textAlign: "center", fontWeight: 700, fontSize: 18, color}}>{val}</div>
+                   })}
+                </div>
+             </div>
+
+             <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 350, marginBottom: 30 }}>
+                <div style={{flex: 1, background: "#1a1a1a", padding: 15, borderRadius: 12, textAlign: "center"}}>
+                   <div style={{fontSize: 10, color: "#555", marginBottom: 5}}>TOTAL POINTS</div>
+                   <div style={{fontSize: 20, fontWeight: 700, color: match.total1 > match.total2 ? "white" : "#666"}}>{match.total1}</div>
+                   <div style={{fontSize: 10, color: "#444", marginTop: 2}}>{p1}</div>
+                </div>
+                <div style={{flex: 1, background: "#1a1a1a", padding: 15, borderRadius: 12, textAlign: "center"}}>
+                   <div style={{fontSize: 10, color: "#555", marginBottom: 5}}>TOTAL POINTS</div>
+                   <div style={{fontSize: 20, fontWeight: 700, color: match.total2 > match.total1 ? "white" : "#666"}}>{match.total2}</div>
+                   <div style={{fontSize: 10, color: "#444", marginTop: 2}}>{p2}</div>
+                </div>
+             </div>
+
+             <button onClick={reset} style={{ width: "100%", maxWidth: 350, padding: 18, borderRadius: 12, background: lime, color: "black", fontWeight: 800, fontSize: 16 }}>NEW MATCH</button>
+          </div>
+        )}
+
+        {/* Share Sheet */}
+        {showShare && peerId && (
+          <ShareSheet
+            peerId={peerId} p1={p1} p2={p2}
+            match={match} elapsed={elapsed}
+            onClose={() => setShowShare(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  const root = ReactDOM.createRoot(document.getElementById("root"));
+  root.render(<TennisScoreboard />);
+</script>
+
+</body>
+</html>
