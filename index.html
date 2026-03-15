@@ -86,6 +86,7 @@ function NB({v,sel,onClick}){return<button onClick={onClick} style={{minWidth:36
 
 /* HELP */
 function HelpSheet({onClose}){return<Sheet onClose={onClose} ch={<><h3 style={{fontSize:18,fontWeight:800,marginBottom:16}}>Scoring Formats</h3><div style={{fontSize:13,color:"var(--text2)",lineHeight:1.9}}><div style={{marginBottom:16}}><div style={{color:L,fontWeight:700,marginBottom:4}}>Set Length</div><div><b style={{color:"var(--text)"}}>6</b> — Standard. TB at 6-6.</div><div><b style={{color:"var(--text)"}}>4</b> — Short set.</div><div><b style={{color:"var(--text)"}}>8</b> — Pro set.</div></div><div style={{marginBottom:16}}><div style={{color:L,fontWeight:700,marginBottom:4}}>Deuce</div><div><b style={{color:"var(--text)"}}>Advantage</b> — Win by 2.</div><div><b style={{color:"var(--text)"}}>No-Ad</b> — Deciding point at 40-40.</div></div><div><div style={{color:L,fontWeight:700,marginBottom:4}}>Final Set</div><div><b style={{color:"var(--text)"}}>Normal</b> — Regular 3rd set.</div><div><b style={{color:"var(--text)"}}>Match TB</b> — TB to 10.</div></div></div><button onClick={onClose} style={{width:"100%",marginTop:20,padding:14,borderRadius:12,background:"rgba(255,255,255,.08)",border:"1.5px solid rgba(255,255,255,.12)",color:"var(--text)",fontWeight:700,fontSize:15}}>Got it</button></>}/>}
+function MatchHelpSheet({onClose}){return<Sheet onClose={onClose} ch={<><h3 style={{fontSize:18,fontWeight:800,marginBottom:16}}>Guide</h3><div style={{fontSize:13,color:"var(--text2)",lineHeight:2}}><div style={{marginBottom:14}}><div style={{color:L,fontWeight:700,marginBottom:4}}>Cards</div><div>Tap card = point for that player.</div><div><b style={{color:L}}>Green border</b> = server. Changes every game.</div></div><div style={{marginBottom:14}}><div style={{color:L,fontWeight:700,marginBottom:4}}>Score</div><div><b style={{color:"var(--text)"}}>0 → 15 → 30 → 40 → Game</b></div><div>40–40 = Deuce → Advantage → Game</div><div>6 games = set. 2 sets = match win.</div></div><div style={{marginBottom:14}}><div style={{color:L,fontWeight:700,marginBottom:4}}>Top Bar</div><div><b style={{color:"var(--text)"}}>Left</b> — timer. <b style={{color:"var(--text)"}}>Center</b> — set status. <b style={{color:"var(--text)"}}>Right</b> — total points.</div></div><div><div style={{color:L,fontWeight:700,marginBottom:4}}>Controls</div><div><b style={{color:"var(--text)"}}>Undo</b> — cancel last point. <b style={{color:"var(--text)"}}>✎</b> — edit score.</div><div><b style={{color:"var(--text)"}}>🔊</b> — umpire voice (server's score first). <b style={{color:"var(--text)"}}>↑</b> — share.</div></div></div><button onClick={onClose} style={{width:"100%",marginTop:16,padding:14,borderRadius:12,background:"rgba(255,255,255,.08)",border:"1.5px solid rgba(255,255,255,.12)",color:"var(--text)",fontWeight:700,fontSize:15}}>Got it</button></>}/>}
 
 /* EDIT (redesigned: table layout) */
 function EditSheet({m,p1,p2,onApply,onClose}){
@@ -195,7 +196,7 @@ function App(){
   const[scr,setScr]=useState("setup");
   const[p1,setP1]=useState("Player 1");const[p2,setP2]=useState("Player 2");
   const[setLen,setSetLen]=useState(6);const[noAd,setNoAd]=useState(false);const[matchTB,setMatchTB]=useState(false);
-  const[showHelp,setShowHelp]=useState(false);const[showEdit,setShowEdit]=useState(false);const[showShare,setShowShare]=useState(false);
+  const[showHelp,setShowHelp]=useState(false);const[showEdit,setShowEdit]=useState(false);const[showShare,setShowShare]=useState(false);const[showMatchHelp,setShowMatchHelp]=useState(false);
   const[m,setM]=useState(null);const[hist,setHist]=useState([]);const[el,setEl]=useState(0);const[fl,setFl]=useState(null);
   const[watchOn,setWatchOn]=useState(false);const[rMsg,setRMsg]=useState(null);const[sv,setSv]=useState(1);const[soundOn,setSoundOn]=useState(true);
   const[roomId,setRoomId]=useState(null);
@@ -222,13 +223,14 @@ function App(){
     LS.host(id=>setRoomId(id));setTimeout(()=>bc(nm,0),2000);
   };
   const end=()=>{clearInterval(ti.current);WR.stop();setWatchOn(false);wl.current?.release();speechSynthesis?.cancel();setScr("final")};
-  const reset=()=>{clearInterval(ti.current);WR.stop();setWatchOn(false);wl.current?.release();speechSynthesis?.cancel();LS.destroy();setRoomId(null);setScr("setup")};
+  const reset=()=>{clearInterval(ti.current);WR.stop();setWatchOn(false);wl.current?.release();speechSynthesis?.cancel();LS.destroy();setRoomId(null);setP1("Player 1");setP2("Player 2");setScr("setup")};
   useEffect(()=>()=>{clearInterval(ti.current);WR.stop();wl.current?.release();speechSynthesis?.cancel();LS.destroy()},[]);
   const sw=m?chkSw(m):false;
   const fL=()=>{const p=[];if(setLen!==6)p.push(`Set ${setLen}`);if(noAd)p.push("No-Ad");if(matchTB)p.push("MTB");return p.length?p.join(" · "):"Standard"};
 
   return<div style={{fontFamily:"var(--font)",height:"100%",background:"var(--bg)",color:"var(--text)",display:"flex",flexDirection:"column",overflow:"hidden",paddingTop:"env(safe-area-inset-top, 0px)"}}>
     {showHelp&&<HelpSheet onClose={()=>setShowHelp(false)}/>}
+    {showMatchHelp&&<MatchHelpSheet onClose={()=>setShowMatchHelp(false)}/>}
     {showEdit&&m&&<EditSheet m={m} p1={p1} p2={p2} onApply={nm=>{setHist(h=>[...h,clone(m)]);setM(nm);bc(nm)}} onClose={()=>setShowEdit(false)}/>}
     {showShare&&m&&<ShareSheet m={m} p1={p1} p2={p2} el={el} roomId={roomId} onClose={()=>setShowShare(false)}/>}
 
@@ -239,7 +241,7 @@ function App(){
       <div style={{width:"100%",maxWidth:340}}>
         {[{ph:"Player 1 name",v:p1,s:setP1,def:"Player 1"},{ph:"Player 2 name",v:p2,s:setP2,def:"Player 2"}].map((f,i)=><div key={i} style={{marginBottom:12}}><input value={f.v===f.def?"":f.v} onChange={e=>f.s((e.target.value||f.def).slice(0,12))} onFocus={e=>{if(f.v===f.def)f.s("");e.target.style.borderColor=L}} onBlur={e=>{if(!f.v.trim())f.s(f.def);e.target.style.borderColor="rgba(255,255,255,.15)"}} placeholder={f.ph} maxLength={12} style={{width:"100%",padding:"15px 16px",borderRadius:12,background:"rgba(255,255,255,.06)",border:"1.5px solid rgba(255,255,255,.15)",color:"var(--text)",fontSize:16,fontWeight:700}}/></div>)}
         <div style={{marginTop:28,marginBottom:28}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}><span style={{fontSize:11,color:"var(--text2)",fontFamily:"var(--mono)",letterSpacing:2,fontWeight:600}}>MATCH FORMAT</span><button onClick={()=>setShowHelp(true)} style={{width:26,height:26,borderRadius:13,background:"rgba(200,255,0,.08)",border:`1.5px solid rgba(200,255,0,.25)`,color:L,fontSize:13,fontWeight:800,fontFamily:"var(--mono)",display:"flex",alignItems:"center",justifyContent:"center"}}>?</button></div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}><span style={{fontSize:11,color:"var(--text2)",fontFamily:"var(--mono)",letterSpacing:2,fontWeight:600}}>MATCH FORMAT</span><button onClick={()=>setShowHelp(true)} style={{width:26,height:26,borderRadius:13,background:"rgba(200,255,0,.08)",border:`1.5px solid rgba(200,255,0,.25)`,color:L,fontSize:13,fontWeight:800,fontFamily:"var(--mono)",display:"flex",alignItems:"center",justifyContent:"center",fontStyle:"italic"}}>i</button></div>
           <div style={{marginBottom:10}}><Seg options={[{v:4,l:"4"},{v:6,l:"6"},{v:8,l:"8 Pro"}]} value={setLen} onChange={setSetLen}/></div>
           <div style={{marginBottom:10}}><Seg options={[{v:false,l:"Advantage"},{v:true,l:"No-Ad"}]} value={noAd} onChange={setNoAd}/></div>
           <div><Seg options={[{v:false,l:"Normal"},{v:true,l:"Match TB (10)"}]} value={matchTB} onChange={setMatchTB}/></div>
@@ -253,7 +255,7 @@ function App(){
 
     {scr==="match"&&m&&<div style={{flex:1,display:"flex",flexDirection:"column",position:"relative"}}>
       <div style={{padding:"14px 16px 10px",display:"flex",justifyContent:"space-between",alignItems:"center",fontFamily:"var(--mono)",background:"rgba(255,255,255,.03)",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
-        <span style={{fontSize:18,fontWeight:800,color:"var(--text)"}}>{fmt(el)}</span>
+        <div style={{display:"flex",alignItems:"center",gap:8}}><button onClick={()=>setShowMatchHelp(true)} style={{width:24,height:24,borderRadius:12,background:"rgba(200,255,0,.08)",border:"1.5px solid rgba(200,255,0,.25)",color:L,fontSize:12,fontWeight:800,fontFamily:"var(--mono)",display:"flex",alignItems:"center",justifyContent:"center",padding:0,fontStyle:"italic",flexShrink:0}}>i</button><span style={{fontSize:18,fontWeight:800,color:"var(--text)"}}>{fmt(el)}</span></div>
         <div style={{textAlign:"center"}}><div style={{color:m.mtb?L:m.tb?L:m.deuce?"#FF9F0A":"var(--text)",fontWeight:800,fontSize:14,letterSpacing:1}}>{m.mtb?"MATCH TIEBREAK":m.tb?"TIEBREAK":m.deuce?"DEUCE":m.adv?"ADVANTAGE":`SET ${m.sets.length+1}`}</div></div>
         <span style={{fontSize:18,fontWeight:800,color:"var(--text)"}}>PT {m.pn}</span>
       </div>
